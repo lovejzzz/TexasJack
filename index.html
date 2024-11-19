@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Sequence Blackjack</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="result-overlay" class="result-overlay hidden">
+        <img id="result-image" src="" alt="Game Result">
+    </div>
+    <div class="container">
+        <div class="game-column">
+            <div class="title-container">
+                <img src="asset/title.png" alt="Texas Jack" class="title-image">
+            </div>
+            <div id="game-area">
+                <div class="hand-section">
+                    <div class="hand-info">
+                        <h2>Dealer's Hand</h2>
+                        <p id="dealerTotal" class="total"></p>
+                    </div>
+                    <div id="dealerCards" class="cards"></div>
+                </div>
+                <div class="hand-section shared">
+                    <div class="hand-info">
+                        <h2>Shared Cards</h2>
+                    </div>
+                    <div id="sharedCards" class="cards"></div>
+                </div>
+                <div class="hand-section">
+                    <div class="hand-info">
+                        <h2>Your Hand</h2>
+                        <p id="playerTotal" class="total"></p>
+                    </div>
+                    <div id="playerCards" class="cards"></div>
+                </div>
+            </div>
+        </div>
+        <div class="control-column">
+            <div id="game-info">
+                <p id="money">Money: $1000</p>
+                <p id="message"></p>
+            </div>
+            <div id="controls">
+                <div id="betting-controls">
+                    <div class="bet-slider-container">
+                        <label for="betSlider">Bet Amount: $<span id="betAmount">10</span></label>
+                        <input type="range" id="betSlider" min="10" max="100" step="5" value="10">
+                        <button id="placeBetButton" onclick="placeBet()">Place Bet</button>
+                    </div>
+                </div>
+                <div id="game-controls">
+                    <button id="hitButton" disabled>Hit</button>
+                    <button id="standButton" disabled>Stand</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
