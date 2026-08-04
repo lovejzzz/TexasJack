@@ -2,62 +2,155 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0b2a1f">
+    <meta name="description" content="Texas Jack — Blackjack meets Texas Hold'em. Every card you draw might belong to the dealer too.">
     <title>Texas Jack</title>
+    <link rel="preload" as="image" href="asset/Win.png">
+    <link rel="preload" as="image" href="asset/Lose.png">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div id="result-overlay" class="result-overlay hidden">
-        <img id="result-image" src="" alt="Game Result">
-    </div>
-    <div class="container">
-        <div class="game-column">
-            <div class="title-container">
-                <img src="asset/title.png" alt="Texas Jack" class="title-image">
+<div class="table">
+
+    <header class="topbar">
+        <img src="asset/title.png" alt="Texas Jack" class="brand">
+
+        <div class="readouts">
+            <div class="readout bankroll">
+                <span class="readout-label">Bankroll</span>
+                <span class="readout-value" id="bankroll">$1,000</span>
             </div>
-            <div id="game-area">
-                <div class="hand-section">
-                    <div class="hand-info">
-                        <h2>Dealer's Hand</h2>
-                        <p id="dealerTotal" class="total"></p>
-                    </div>
-                    <div id="dealerCards" class="cards"></div>
-                </div>
-                <div class="hand-section shared">
-                    <div class="hand-info">
-                        <h2>Shared Cards</h2>
-                    </div>
-                    <div id="sharedCards" class="cards"></div>
-                </div>
-                <div class="hand-section">
-                    <div class="hand-info">
-                        <h2>Your Hand</h2>
-                        <p id="playerTotal" class="total"></p>
-                    </div>
-                    <div id="playerCards" class="cards"></div>
-                </div>
+            <div class="readout">
+                <span class="readout-label">In Play</span>
+                <span class="readout-value" id="potValue">$0</span>
+            </div>
+            <div class="readout streak" id="streakBox">
+                <span class="readout-label">Streak</span>
+                <span class="readout-value" id="streak">0</span>
             </div>
         </div>
-        <div class="control-column">
-            <div id="game-info">
-                <p id="money">Money: $1000</p>
-                <p id="message"></p>
+
+        <div class="tools">
+            <button class="icon-btn" id="rulesBtn" title="How to play (R)" aria-label="How to play">?</button>
+            <button class="icon-btn" id="soundBtn" title="Sound (M)" aria-label="Toggle sound">
+                <span id="soundIcon">🔊</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="felt" id="felt">
+        <div class="felt-glow" aria-hidden="true"></div>
+
+        <section class="lane lane-dealer">
+            <div class="lane-head">
+                <span class="lane-name">Dealer</span>
+                <span class="pill" id="dealerTotal" data-state="idle">—</span>
+                <span class="lane-hint">stands on 17</span>
             </div>
-            <div id="controls">
-                <div id="betting-controls">
-                    <div class="bet-slider-container">
-                        <label for="betSlider">Bet Amount: $<span id="betAmount">10</span></label>
-                        <input type="range" id="betSlider" min="10" max="100" step="5" value="10">
-                        <button id="placeBetButton" onclick="placeBet()">Place Bet</button>
-                    </div>
-                </div>
-                <div id="game-controls">
-                    <button id="hitButton" disabled>Hit</button>
-                    <button id="standButton" disabled>Stand</button>
-                </div>
+            <div class="cards" id="dealerCards" aria-live="polite"></div>
+        </section>
+
+        <section class="lane lane-community">
+            <div class="lane-head">
+                <span class="lane-name">Community</span>
+                <span class="lane-hint">counts for <em>both</em> hands</span>
+            </div>
+            <div class="cards" id="sharedCards" aria-live="polite"></div>
+        </section>
+
+        <section class="lane lane-player">
+            <div class="lane-head">
+                <span class="lane-name">You</span>
+                <span class="pill" id="playerTotal" data-state="idle">—</span>
+            </div>
+            <div class="cards" id="playerCards" aria-live="polite"></div>
+        </section>
+
+        <div class="shoe" id="shoe" aria-hidden="true">
+            <div class="shoe-stack"></div>
+            <span class="shoe-count" id="shoeCount">52</span>
+        </div>
+    </main>
+
+    <div class="status" id="status" role="status">Place your bet to begin.</div>
+
+    <footer class="dock">
+        <div class="bet-rail" id="betRail">
+            <div class="chips" id="chips">
+                <button class="chip" data-value="5"    style="--chip:#d94f4f;--chip-dark:#8f2626" aria-label="Bet 5">5</button>
+                <button class="chip" data-value="25"   style="--chip:#3fa564;--chip-dark:#1f6b3d" aria-label="Bet 25">25</button>
+                <button class="chip" data-value="100"  style="--chip:#3b6fd4;--chip-dark:#22448a" aria-label="Bet 100">100</button>
+                <button class="chip" data-value="500"  style="--chip:#8b5bd6;--chip-dark:#553288" aria-label="Bet 500">500</button>
+            </div>
+            <div class="bet-meta">
+                <button class="mini-btn" id="clearBet">Clear</button>
+                <button class="mini-btn" id="maxBet">Max</button>
+                <button class="mini-btn" id="rebet">Re-bet</button>
             </div>
         </div>
+
+        <div class="actions">
+            <button class="btn btn-deal"   id="dealBtn">Deal <kbd>↵</kbd></button>
+            <button class="btn btn-hit"    id="hitBtn"    disabled>Hit <kbd>H</kbd></button>
+            <button class="btn btn-stand"  id="standBtn"  disabled>Stand <kbd>S</kbd></button>
+            <button class="btn btn-double" id="doubleBtn" disabled>Double <kbd>D</kbd></button>
+        </div>
+    </footer>
+</div>
+
+<!-- Result splash --------------------------------------------------------- -->
+<div id="resultOverlay" class="overlay hidden" aria-hidden="true">
+    <img id="resultImage" src="" alt="">
+    <div id="resultPayout" class="result-payout"></div>
+</div>
+
+<!-- Rules ----------------------------------------------------------------- -->
+<div id="rulesModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+    <div class="modal-card">
+        <button class="modal-close" id="rulesClose" aria-label="Close">×</button>
+        <h2 id="rulesTitle">How to play Texas Jack</h2>
+        <p class="lede">Blackjack's race to 21, played with Hold'em's shared board. The twist:
+            the card you ask for might end up helping the dealer too.</p>
+        <ol class="rules">
+            <li><strong>The deal.</strong> You get one card, the dealer gets one face down, and one
+                <em>community</em> card hits the middle. Community cards count toward
+                <em>both</em> totals.</li>
+            <li><strong>When you hit</strong>, the dealer reacts at the same moment. If the dealer's
+                total is under 17 they hit as well — and your card lands in the community row,
+                feeding both hands. If the dealer stands, the card is yours alone.</li>
+            <li><strong>When you stand</strong>, the dealer draws privately until they reach 17 or bust.</li>
+            <li><strong>Double</strong> is available on your first action: double the wager, take one
+                card, then stand automatically.</li>
+            <li><strong>Bust</strong> over 21 and you lose. If a community card busts you both, it's a push.</li>
+        </ol>
+        <h3>Payouts</h3>
+        <ul class="payouts">
+            <li><span>Win</span><b>1 : 1</b></li>
+            <li><span>Win on exactly 21</span><b>3 : 2</b></li>
+            <li><span>Push</span><b>bet returned</b></li>
+            <li><span>Hot streak (3+ wins)</span><b>+25% bonus</b></li>
+        </ul>
+        <h3>This session</h3>
+        <ul class="stats" id="sessionStats">
+            <li><b id="statHands">0</b><span>hands</span></li>
+            <li><b id="statWins">0</b><span>wins</span></li>
+            <li><b id="statRate">—</b><span>win rate</span></li>
+            <li><b id="statBest">$1,000</b><span>peak bankroll</span></li>
+        </ul>
+
+        <p class="shortcuts"><kbd>↵</kbd> deal · <kbd>H</kbd> hit · <kbd>S</kbd> stand ·
+            <kbd>D</kbd> double · <kbd>M</kbd> mute · <kbd>R</kbd> rules</p>
+        <div class="modal-foot">
+            <button class="btn btn-deal modal-cta" id="rulesGo">Deal me in</button>
+        </div>
     </div>
-    <script src="game.js"></script>
+</div>
+
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<script src="cards.js"></script>
+<script src="audio.js"></script>
+<script src="game.js"></script>
 </body>
 </html>
