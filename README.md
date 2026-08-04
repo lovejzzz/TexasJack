@@ -44,11 +44,33 @@ Fire at the board — a ten breaks them and you can absorb it. Sitting on 15
 yourself? Spend one of your two private draws instead. Once the budget's
 gone, every card you take feeds the dealer too.
 
-## Both variants
+### A pat dealer stands aside
 
-Stand, and the dealer draws privately until they reach 17 or bust.
-**Double** is on the table for your first action: double the wager, take one
-card, then stand automatically.
+Community cards only count for the dealer **while they're under 17**. Once
+they're pat, anything that lands on the board is marked `yours` and counts for
+you alone. You can break a dealer who's still drawing; you can't shove a
+standing dealer over the edge.
+
+## Money on the table
+
+Stand, and the dealer draws privately until they reach 17 or bust. While the
+hand is live you have two ways to back your read:
+
+**One money move per hand — raise or peek, never both.**
+
+| | What it does | Cost |
+| --- | --- | --- |
+| **Raise** | Adds to your wager | Up to half the ante, shrinking 25% per card you've taken |
+| **Peek** | Turns the dealer's hole card face up | 2% of the ante |
+
+The raise cap decaying is the point: commit early against a wide range for the
+most leverage, or wait for a sharper read and bet less on it. Peek works the
+other way round — early, when the range spans ten points, it's cheap for what
+it tells you; late, when it already reads 18–21, you're paying for nothing.
+
+They're mutually exclusive because together they're broken: buying the hole
+card cheaply and *then* betting on the near-certainty measured at +5.5% to the
+player. Back the read you have, or pay to sharpen it — not both.
 
 ## Payouts
 
@@ -64,8 +86,8 @@ too — you went over first. Pushes happen when both hands finish level.
 
 ## Controls
 
-`↵` deal · `S` stand · `D` double · `1`–`4` place chips ·
-`M` mute · `R` rules · `Esc` dismiss
+`↵` deal · `S` stand · `R` raise · `P` peek · `1`–`4` place chips ·
+`M` mute · `?` rules · `Esc` dismiss
 
 `H` hit (Dealer's Call) · `B` board / `H` hand (Your Call)
 

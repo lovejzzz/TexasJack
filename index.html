@@ -32,7 +32,7 @@
         </div>
 
         <div class="tools">
-            <button class="icon-btn" id="rulesBtn" title="How to play (R)" aria-label="How to play">?</button>
+            <button class="icon-btn" id="rulesBtn" title="How to play (?)" aria-label="How to play">?</button>
             <button class="icon-btn" id="soundBtn" title="Sound (M)" aria-label="Toggle sound">
                 <span id="soundIcon">🔊</span>
             </button>
@@ -77,16 +77,29 @@
 
     <footer class="dock">
         <div class="bet-rail" id="betRail">
-            <div class="chips" id="chips">
-                <button class="chip" data-value="5"    style="--chip:#d94f4f;--chip-dark:#8f2626" aria-label="Bet 5">5</button>
-                <button class="chip" data-value="25"   style="--chip:#3fa564;--chip-dark:#1f6b3d" aria-label="Bet 25">25</button>
-                <button class="chip" data-value="100"  style="--chip:#3b6fd4;--chip-dark:#22448a" aria-label="Bet 100">100</button>
-                <button class="chip" data-value="500"  style="--chip:#8b5bd6;--chip-dark:#553288" aria-label="Bet 500">500</button>
+            <div class="bet-controls" id="betControls">
+                <div class="chips" id="chips">
+                    <button class="chip" data-value="5"    style="--chip:#d94f4f;--chip-dark:#8f2626" aria-label="Bet 5">5</button>
+                    <button class="chip" data-value="25"   style="--chip:#3fa564;--chip-dark:#1f6b3d" aria-label="Bet 25">25</button>
+                    <button class="chip" data-value="100"  style="--chip:#3b6fd4;--chip-dark:#22448a" aria-label="Bet 100">100</button>
+                    <button class="chip" data-value="500"  style="--chip:#8b5bd6;--chip-dark:#553288" aria-label="Bet 500">500</button>
+                </div>
+                <div class="bet-meta">
+                    <button class="mini-btn" id="clearBet">Clear</button>
+                    <button class="mini-btn" id="maxBet">Max</button>
+                    <button class="mini-btn" id="rebet">Re-bet</button>
+                </div>
             </div>
-            <div class="bet-meta">
-                <button class="mini-btn" id="clearBet">Clear</button>
-                <button class="mini-btn" id="maxBet">Max</button>
-                <button class="mini-btn" id="rebet">Re-bet</button>
+
+            <div class="play-money" id="playMoney" hidden>
+                <button class="money-btn raise" id="raiseBtn" disabled>
+                    <span class="money-label">Raise</span>
+                    <b id="raiseAmt">—</b><kbd>R</kbd>
+                </button>
+                <button class="money-btn peek" id="peekBtn" disabled>
+                    <span class="money-label">Peek the hole card</span>
+                    <b id="peekAmt">—</b><kbd>P</kbd>
+                </button>
             </div>
         </div>
 
@@ -97,7 +110,6 @@
             <button class="btn btn-hand"   id="handBtn"   disabled hidden>Hand
                 <span class="tally" id="handLeft">2</span><kbd>H</kbd></button>
             <button class="btn btn-stand"  id="standBtn"  disabled>Stand <kbd>S</kbd></button>
-            <button class="btn btn-double" id="doubleBtn" disabled>Double <kbd>D</kbd></button>
         </div>
     </footer>
 </div>
@@ -141,9 +153,17 @@
                 so their total is always pinned to a range — shown above their hand, along with what
                 they'll do next.</li>
             <li><strong>When you stand</strong>, the dealer draws privately until they reach 17 or bust.</li>
-            <li><strong>Double</strong> is available on your first action: double the wager, take one
-                card<span data-variant="routed"> into your hand, free of your two-draw budget</span>,
-                then stand automatically.</li>
+            <li><strong>One money move per hand — raise or peek, never both.</strong>
+                Back the read you already have, or pay to sharpen it. Not both.</li>
+            <li><strong>Raise</strong> adds up to half your ante, and the cap shrinks with every
+                card you take. Commit early against a wide range for the most leverage, or wait
+                for a sharper read and bet less on it.</li>
+            <li><strong>Peek</strong> buys the dealer's hole card for 2% of your ante. Early,
+                when the range spans ten points, that's cheap for what it tells you. Late, when
+                it already reads 18–21, you're paying for nothing.</li>
+            <li><strong>A pat dealer stands aside.</strong> Community cards only count for the
+                dealer while they're under 17. Once they're pat, anything that lands on the board
+                is marked <em>yours</em> and counts for you alone.</li>
             <li><strong>Bust</strong> over 21 and you lose — even when the same community card
                 breaks the dealer too. You went over first.</li>
         </ol>
@@ -153,6 +173,7 @@
             <li><span>Win on exactly 21</span><b>3 : 2</b></li>
             <li><span>Push</span><b>bet returned</b></li>
             <li><span>Hot streak (3+ wins)</span><b>+25% bonus</b></li>
+            <li><span>Peek</span><b>costs 2% of the ante</b></li>
         </ul>
         <h3>This session</h3>
         <ul class="stats" id="sessionStats">
@@ -166,7 +187,8 @@
             <kbd>↵</kbd> deal ·
             <span data-variant="classic"><kbd>H</kbd> hit</span>
             <span data-variant="routed"><kbd>B</kbd> board · <kbd>H</kbd> hand</span> ·
-            <kbd>S</kbd> stand · <kbd>D</kbd> double · <kbd>M</kbd> mute · <kbd>R</kbd> rules</p>
+            <kbd>S</kbd> stand · <kbd>R</kbd> raise · <kbd>P</kbd> peek ·
+            <kbd>M</kbd> mute · <kbd>?</kbd> rules</p>
         <div class="modal-foot">
             <button class="btn btn-deal modal-cta" id="rulesGo">Deal me in</button>
         </div>

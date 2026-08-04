@@ -30,7 +30,12 @@ const el = {
     dealBtn: $('dealBtn'),
     hitBtn: $('hitBtn'),
     standBtn: $('standBtn'),
-    doubleBtn: $('doubleBtn'),
+    raiseBtn: $('raiseBtn'),
+    peekBtn: $('peekBtn'),
+    raiseAmt: $('raiseAmt'),
+    peekAmt: $('peekAmt'),
+    playMoney: $('playMoney'),
+    betControls: $('betControls'),
     overlay: $('resultOverlay'),
     resultImage: $('resultImage'),
     resultPayout: $('resultPayout'),
@@ -67,6 +72,12 @@ const HOT_STREAK_AT = 3;
 const HOT_STREAK_BONUS = 0.25;
 const PERFECT_MULTIPLIER = 1.5;   // win on exactly 21 pays 3:2
 const PRIVATE_DRAWS = 2;          // "Your Call" mode: cards you may keep to yourself
+/* Peek is priced just above what the hole card is actually worth. Measured over
+   20k hands, knowing it is worth ~1.4 points of edge — the range display
+   already carries most of the signal — so buying it every hand is a small
+   loss and buying it only when the range is wide is a small gain. */
+const PEEK_RATE = 0.02;
+const RAISE_MAX = 0.5;            // most you may add to the wager, as a share of the ante
 
 /* Every rank a face-down card could be, as a hand value. */
 const UNKNOWN_RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'A'];
@@ -92,13 +103,18 @@ const game = {
     player: [],
     dealer: [],
     shared: [],
+    dealerBoard: [],
     phase: PHASE.BET,
     bankroll: Number.isFinite(persisted.bankroll) ? persisted.bankroll : START_BANK,
     bet: 0,
     lastBet: persisted.lastBet || 0,
     streak: persisted.streak || 0,
-    doubled: false,
+    ante: 0,
+    raised: false,
+    peeked: false,
+    moneyUsed: false,
     actedOnce: false,
+    drawsTaken: 0,
     dealerRevealed: false,
     hands: persisted.hands || 0,
     wins: persisted.wins || 0,
@@ -124,6 +140,15 @@ function persist() {
 }
 
 const sleep = ms => new Promise(res => setTimeout(res, ms));
+
+/** Your total counts the whole board. */
+const playerTotal = () => handTotal(game.player, game.shared);
+/**
+ * The dealer's total counts only the board cards they took while still under
+ * 17. A dealer who is already pat cannot be forced to break by a card the
+ * player shoves onto the board.
+ */
+const dealerTotal = () => handTotal(game.dealer, game.dealerBoard);
 
 /* ---- Rendering ----------------------------------------------------------- */
 
@@ -231,7 +256,8 @@ function dealerRange() {
     const totals = [];
     const walk = (depth, cards) => {
         if (depth === hidden) {
-            totals.push(handTotal(cards, game.shared).total);
+            // Only the board cards the dealer actually took, not the whole row.
+            totals.push(handTotal(cards, game.dealerBoard).total);
             return;
         }
         for (const rank of UNKNOWN_RANKS) walk(depth + 1, cards.concat({ rank }));
@@ -272,7 +298,7 @@ function updateTotals() {
         inPlay ? (p.soft && p.total !== 21 ? `${p.total} soft` : p.total) : '—',
         pillState(p.total, inPlay));
 
-    const d = handTotal(game.dealer, game.shared);
+    const d = handTotal(game.dealer, game.dealerBoard);
     if (!inPlay) {
         setPill(el.dealerTotal, '—', 'idle');
     } else if (game.dealerRevealed) {
@@ -335,7 +361,6 @@ function syncControls() {
     const broke = game.bankroll === 0 && game.bet === 0;
     el.dealBtn.disabled = !betting || (game.bet === 0 && !broke);
     el.standBtn.disabled = !playing;
-    el.doubleBtn.disabled = !playing || game.actedOnce || game.bankroll < game.bet;
 
     el.hitBtn.hidden = routed();
     el.boardBtn.hidden = !routed();
@@ -344,6 +369,19 @@ function syncControls() {
     el.boardBtn.disabled = !playing;
     el.handBtn.disabled = !playing || game.privateLeft <= 0;
     el.handLeft.textContent = game.privateLeft;
+
+    // The money row swaps between placing a bet and acting on one.
+    const inHand = !betting && game.phase !== PHASE.OVER;
+    el.betControls.hidden = inHand;
+    el.playMoney.hidden = !inHand;
+
+    const cap = raiseCap();
+    el.raiseBtn.disabled = !playing || cap <= 0;
+    el.raiseAmt.textContent = cap > 0 ? '+' + money(cap) : '—';
+    const cost = peekCost();
+    el.peekBtn.disabled = !playing || game.moneyUsed || game.dealerRevealed || cost > game.bankroll;
+    el.peekAmt.textContent = game.peeked || game.dealerRevealed ? 'seen'
+                           : game.moneyUsed ? '—' : money(cost);
 
     el.modeSwitch.querySelectorAll('button').forEach(b => {
         b.setAttribute('aria-pressed', String(b.dataset.pick === game.mode));
@@ -398,8 +436,13 @@ async function startRound() {
     game.player = [];
     game.dealer = [];
     game.shared = [];
-    game.doubled = false;
+    game.dealerBoard = [];
+    game.ante = game.bet;
+    game.raised = false;
+    game.peeked = false;
+    game.moneyUsed = false;
     game.actedOnce = false;
+    game.drawsTaken = 0;
     game.dealerRevealed = false;
     game.privateLeft = PRIVATE_DRAWS;
     game.deck.reset();
@@ -412,7 +455,10 @@ async function startRound() {
 
     await dealTo(game.player, el.playerCards, game.deck.draw());
     await dealTo(game.dealer, el.dealerCards, game.deck.draw(), { faceDown: true });
-    await dealTo(game.shared, el.sharedCards, game.deck.draw());
+    // Routed through layOnBoard so the opening community card obeys the same
+    // "dealer takes it only while under 17" rule as every later one.
+    await layOnBoard(game.deck.draw());
+    highlightLane(null);
 
     game.phase = PHASE.PLAYER;
     updateTotals();
@@ -429,24 +475,38 @@ async function startRound() {
     }
 }
 
-/** Puts a drawn card on the board, where it counts for both hands. */
+/**
+ * Puts a drawn card on the board. The dealer only picks it up if they were
+ * still under 17 when it landed — a pat dealer stands aside, and the card
+ * belongs to the player alone.
+ */
 async function layOnBoard(card) {
+    const dealerTakes = dealerTotal().total < DEALER_STANDS_ON;
+    if (dealerTakes) game.dealerBoard.push(card);
+
     highlightLane('shared');
     const node = await dealTo(game.shared, el.sharedCards, card);
     node.classList.add('shared-jump');
+    if (!dealerTakes) {
+        node.classList.add('solo');
+        node.insertAdjacentHTML('beforeend', '<span class="card-tag">yours</span>');
+    }
+    updateTotals();
+    return node;
 }
 
 /** "Dealer's Call": the dealer's own total decides where your card lands. */
-async function playerHit({ fromDouble = false } = {}) {
+async function playerHit() {
     if (game.phase !== PHASE.PLAYER) return;
 
     game.phase = PHASE.RESOLVING;
     game.actedOnce = true;
+    game.drawsTaken += 1;
     syncControls();
     highlightLane(null);
 
     const card = game.deck.draw();
-    const dealerBefore = handTotal(game.dealer, game.shared).total;
+    const dealerBefore = handTotal(game.dealer, game.dealerBoard).total;
     const dealerHitsToo = dealerBefore < DEALER_STANDS_ON;
 
     setStatus('You call for a card — the dealer weighs it', { thinking: true });
@@ -464,7 +524,7 @@ async function playerHit({ fromDouble = false } = {}) {
         await dealTo(game.player, el.playerCards, card);
     }
 
-    return afterDraw(fromDouble);
+    return afterDraw();
 }
 
 /**
@@ -472,12 +532,13 @@ async function playerHit({ fromDouble = false } = {}) {
  * it can break a dealer sitting on 16, but it lifts your total too. Keeping a
  * card to yourself is safe, and deliberately scarce.
  */
-async function playerDraw(target, { fromDouble = false, free = false } = {}) {
+async function playerDraw(target, { free = false } = {}) {
     if (game.phase !== PHASE.PLAYER) return;
     if (target === 'hand' && !free && game.privateLeft <= 0) return;
 
     game.phase = PHASE.RESOLVING;
     game.actedOnce = true;
+    game.drawsTaken += 1;
     if (target === 'hand' && !free) game.privateLeft -= 1;
     syncControls();
     highlightLane(null);
@@ -496,16 +557,16 @@ async function playerDraw(target, { fromDouble = false, free = false } = {}) {
         await dealTo(game.player, el.playerCards, card);
     }
 
-    return afterDraw(fromDouble);
+    return afterDraw();
 }
 
 /** Shared settlement for both variants once a card has landed. */
-async function afterDraw(fromDouble) {
+async function afterDraw() {
     await sleep(260);
     highlightLane(null);
 
     const p = handTotal(game.player, game.shared).total;
-    const d = handTotal(game.dealer, game.shared).total;
+    const d = handTotal(game.dealer, game.dealerBoard).total;
 
     // The player busts first, so a card that breaks them both is still a loss.
     // Treating it as a push made reckless drawing free and handed the player a
@@ -523,30 +584,64 @@ async function afterDraw(fromDouble) {
         return finish('win', `The board broke the dealer at ${d}!`);
     }
 
-    if (fromDouble) {
-        setStatus('Doubled — standing pat.');
-        await sleep(600);
-        return dealerPlay();
-    }
-
     setStatus(p === 21 ? 'Twenty-one! Stand and lock it in?' : 'Your move.');
     game.phase = PHASE.PLAYER;
     highlightLane('player');
     syncControls();
 }
 
-async function playerDouble() {
-    if (game.phase !== PHASE.PLAYER || game.actedOnce || game.bankroll < game.bet) return;
-    game.bankroll -= game.bet;
-    game.bet *= 2;
-    game.doubled = true;
+/* ---- Money actions ------------------------------------------------------- */
+
+/**
+ * How much you may still add to the wager. It shrinks with every card you take,
+ * so leverage and information pull against each other: commit early on a wide
+ * read for the most money, or wait for a sharper read and bet less on it.
+ */
+function raiseCap() {
+    if (game.moneyUsed || game.phase !== PHASE.PLAYER) return 0;
+    // Half the ante at most. At a full ante, a player who waits for a provably
+    // winning spot converts the read into a +3.7% edge — the raise has to be
+    // worth taking without being big enough to break the game.
+    const scale = Math.max(0.25, 1 - 0.25 * game.drawsTaken);
+    return Math.min(game.bankroll, Math.round(game.ante * RAISE_MAX * scale));
+}
+
+function playerRaise() {
+    const amount = raiseCap();
+    if (amount <= 0) return;
+    game.bankroll -= amount;
+    game.bet += amount;
+    game.raised = true;
+    game.moneyUsed = true;
     SFX.chip();
     updateMoney(true);
-    setStatus(`Doubled to <b>${money(game.bet)}</b> — one card only.`);
-    await sleep(420);
-    // Doubling is already a commitment, so the card comes to your hand for free.
-    await (routed() ? playerDraw('hand', { fromDouble: true, free: true })
-                    : playerHit({ fromDouble: true }));
+    flyMoney(`−${money(amount)}`, true);
+    setStatus(`Raised to <b>${money(game.bet)}</b>.`);
+    syncControls();
+}
+
+/** What it costs right now to buy a look at the dealer's hole card. */
+function peekCost() {
+    return Math.max(1, Math.round(game.ante * PEEK_RATE));
+}
+
+async function playerPeek() {
+    if (game.phase !== PHASE.PLAYER || game.moneyUsed || game.dealerRevealed) return;
+    const cost = peekCost();
+    if (cost > game.bankroll) return;
+
+    game.bankroll -= cost;
+    game.peeked = true;
+    game.moneyUsed = true;
+    SFX.chip();
+    updateMoney();
+    flyMoney(`−${money(cost)}`, true);
+    syncControls();
+
+    await revealDealer();
+    updateTotals();
+    setStatus(`You bought the look — dealer holds <b>${dealerTotal().total}</b>.`);
+    syncControls();
 }
 
 async function playerStand() {
@@ -564,7 +659,7 @@ async function dealerPlay() {
     await revealDealer();
     updateTotals();
 
-    let d = handTotal(game.dealer, game.shared).total;
+    let d = handTotal(game.dealer, game.dealerBoard).total;
     const p = handTotal(game.player, game.shared).total;
 
     while (d < DEALER_STANDS_ON) {
@@ -572,7 +667,7 @@ async function dealerPlay() {
         await sleep(620);
         await dealTo(game.dealer, el.dealerCards, game.deck.draw());
         updateTotals();
-        d = handTotal(game.dealer, game.shared).total;
+        d = handTotal(game.dealer, game.dealerBoard).total;
     }
 
     highlightLane(null);
@@ -805,7 +900,8 @@ el.hitBtn.addEventListener('click', () => playerHit());
 el.boardBtn.addEventListener('click', () => playerDraw('board'));
 el.handBtn.addEventListener('click', () => playerDraw('hand'));
 el.standBtn.addEventListener('click', playerStand);
-el.doubleBtn.addEventListener('click', playerDouble);
+el.raiseBtn.addEventListener('click', playerRaise);
+el.peekBtn.addEventListener('click', playerPeek);
 
 el.modeSwitch.addEventListener('click', e => {
     const pick = e.target.closest('button[data-pick]');
@@ -840,14 +936,15 @@ document.addEventListener('keydown', e => {
     }
     else if (key === 'b') { if (routed() && !el.boardBtn.disabled) playerDraw('board'); }
     else if (key === 's') { if (!el.standBtn.disabled) playerStand(); }
-    else if (key === 'd') { if (!el.doubleBtn.disabled) playerDouble(); }
+    else if (key === 'r') { if (!el.raiseBtn.disabled) playerRaise(); }
+    else if (key === 'p') { if (!el.peekBtn.disabled) playerPeek(); }
     else if (key === 'enter' || key === ' ') {
         e.preventDefault();
         if (!el.dealBtn.disabled) startRound();
         else if (game.phase === PHASE.BET && game.bankroll === 0) rebuy();
     }
     else if (key === 'm') { SFX.toggleMute(); syncSoundIcon(); }
-    else if (key === 'r') { openRules(); }
+    else if (key === '?' || key === '/') { openRules(); }
     else if (key >= '1' && key <= '4') {
         const chip = el.chips.querySelectorAll('.chip')[Number(key) - 1];
         if (chip && !chip.disabled) addToBet(Number(chip.dataset.value));
