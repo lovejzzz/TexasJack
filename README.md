@@ -59,7 +59,8 @@ card, then stand automatically.
 | Push | Bet returned |
 | Hot streak (3+ wins running) | +25% bonus on the win |
 
-If a community card busts you *and* the dealer, the hand is a push.
+Bust over 21 and you lose, even if the same community card breaks the dealer
+too — you went over first. Pushes happen when both hands finish level.
 
 ## Controls
 

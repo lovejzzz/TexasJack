@@ -507,10 +507,15 @@ async function afterDraw(fromDouble) {
     const p = handTotal(game.player, game.shared).total;
     const d = handTotal(game.dealer, game.shared).total;
 
-    if (p > 21 && d > 21) return finish('push', 'That card broke you both — push.');
+    // The player busts first, so a card that breaks them both is still a loss.
+    // Treating it as a push made reckless drawing free and handed the player a
+    // large edge — a quarter of all hands were ending in a no-risk refund.
     if (p > 21) {
         markBust(el.playerCards);
-        return finish('lose', `You bust with ${p}.`, { bust: true });
+        return finish('lose',
+            d > 21 ? `${p} — that card broke you both, but you went over first.`
+                   : `You bust with ${p}.`,
+            { bust: true });
     }
     if (d > 21) {
         await revealDealer();
@@ -573,13 +578,14 @@ async function dealerPlay() {
     highlightLane(null);
     await sleep(420);
 
-    if (d > 21) {
-        markBust(el.dealerCards);
-        return finish('win', `Dealer busts with ${d}. The hand is yours.`);
-    }
+    // Player first, to stay consistent with the bust rule above.
     if (p > 21) {
         markBust(el.playerCards);
         return finish('lose', `You're over at ${p}.`, { bust: true });
+    }
+    if (d > 21) {
+        markBust(el.dealerCards);
+        return finish('win', `Dealer busts with ${d}. The hand is yours.`);
     }
     if (p > d) return finish('win', `${p} beats ${d}.`);
     if (d > p) return finish('lose', `Dealer's ${d} tops your ${p}.`);
