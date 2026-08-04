@@ -229,6 +229,9 @@ button { font-family: inherit; }
     letter-spacing: .04em;
 }
 .lane-hint em { color: var(--gold); font-style: normal; font-weight: 700; }
+.lane-hint.tell-hit  { color: #ffbe3d; }
+.lane-hint.tell-pat  { color: rgba(70, 224, 139, .9); }
+.lane-hint.tell-maybe { color: rgba(255, 235, 190, .7); }
 
 .lane-community {
     background: linear-gradient(180deg, rgba(255, 231, 176, .09), rgba(255, 231, 176, .02));
@@ -281,6 +284,11 @@ button { font-family: inherit; }
     transition: color .25s, border-color .25s, background .25s, transform .25s;
 }
 .pill[data-state="idle"] { color: var(--ink-dim); }
+.pill[data-state="range"] {
+    color: rgba(255, 236, 194, .9);
+    border-color: rgba(255, 215, 140, .38);
+    letter-spacing: 0;
+}
 .pill[data-state="safe"] { color: var(--good); border-color: rgba(70, 224, 139, .45); }
 .pill[data-state="warm"] { color: var(--warn); border-color: rgba(255, 190, 61, .5); }
 .pill[data-state="bust"] { color: #fff; background: rgba(255, 60, 60, .78); border-color: rgba(255, 120, 120, .8); }
@@ -294,10 +302,15 @@ button { font-family: inherit; }
 
 /* ---- Cards --------------------------------------------------------------- */
 
+/* The card fills its lane and derives width from the 5:7 ratio, capped at
+   --card-h. Sizing from the lane rather than the viewport means a card can
+   never spill over its own heading. */
 .card {
     position: relative;
-    width: var(--card-w);
-    height: var(--card-h);
+    height: 100%;
+    max-height: var(--card-h);
+    width: auto;
+    aspect-ratio: 5 / 7;
     flex: 0 0 auto;
     perspective: 900px;
     transition: transform .25s cubic-bezier(.2, .8, .3, 1), filter .25s;
@@ -404,19 +417,22 @@ button { font-family: inherit; }
 
 /* ---- Dock ---------------------------------------------------------------- */
 
+/* Chips on one row, actions on the next. Five action buttons never fit
+   alongside the bet rail, so the split is unconditional rather than a
+   breakpoint that quietly overflows. */
 .dock {
     flex-shrink: 0;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: clamp(10px, 2vw, 28px);
-    padding: clamp(8px, 1.4vh, 16px) clamp(10px, 2vw, 22px) calc(clamp(8px, 1.4vh, 16px) + env(safe-area-inset-bottom));
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+    gap: clamp(7px, 1.1vh, 13px);
+    padding: clamp(7px, 1.2vh, 14px) clamp(10px, 2vw, 22px) calc(clamp(7px, 1.2vh, 14px) + env(safe-area-inset-bottom));
 }
 
 .bet-rail {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: clamp(8px, 1.4vw, 16px);
     flex-wrap: wrap;
 }
@@ -477,10 +493,10 @@ button { font-family: inherit; }
 .actions {
     display: flex;
     gap: clamp(6px, 1vw, 12px);
-    flex: 1;
-    justify-content: flex-end;
-    min-width: 260px;
+    width: 100%;
+    justify-content: stretch;
 }
+.actions .btn { flex: 1 1 0; min-width: 0; }
 
 .btn {
     position: relative;
@@ -510,10 +526,28 @@ button { font-family: inherit; }
 .btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0, 0, 0, .32); }
 .btn:disabled { filter: grayscale(1) brightness(.5); cursor: not-allowed; box-shadow: 0 3px 0 rgba(0, 0, 0, .3); }
 
+.btn[hidden] { display: none; }
+
 .btn-deal   { background: linear-gradient(180deg, var(--gold-hot), var(--gold)); }
 .btn-hit    { background: linear-gradient(180deg, #6ef2a6, #22c46e); }
+.btn-hand   { background: linear-gradient(180deg, #6ef2a6, #22c46e); }
+.btn-board  { background: linear-gradient(180deg, #f8dc9a, #e0a63c); }
 .btn-stand  { background: linear-gradient(180deg, #ffd0a0, #ff9f5a); }
 .btn-double { background: linear-gradient(180deg, #c9b1ff, #8b6ee8); color: #fff; }
+
+/* Remaining private draws, shown on the Hand button. */
+.tally {
+    display: inline-block;
+    min-width: 1.5em;
+    margin-left: 6px;
+    padding: 1px 4px;
+    border-radius: 6px;
+    background: rgba(8, 22, 15, .28);
+    font-family: var(--font-num);
+    font-size: .82em;
+    line-height: 1.3;
+}
+.btn:disabled .tally { background: rgba(0, 0, 0, .2); }
 
 .btn-deal:not(:disabled) { animation: dealPulse 2.4s ease-in-out infinite; }
 @keyframes dealPulse {
@@ -642,6 +676,35 @@ button { font-family: inherit; }
 }
 .lede { margin: 0 0 16px; color: var(--ink-dim); font-size: 14px; line-height: 1.6; }
 
+.mode-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 0 0 18px;
+}
+.mode-switch button {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 11px 12px;
+    text-align: left;
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--ink-dim);
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .10);
+    transition: all .18s;
+}
+.mode-switch button b { font-size: 13.5px; color: var(--ink); }
+.mode-switch button span { font-size: 11px; line-height: 1.35; }
+.mode-switch button:hover:not(:disabled) { background: rgba(255, 255, 255, .09); }
+.mode-switch button[aria-pressed="true"] {
+    background: linear-gradient(180deg, rgba(242, 199, 106, .22), rgba(242, 199, 106, .06));
+    border-color: rgba(242, 199, 106, .55);
+}
+.mode-switch button[aria-pressed="true"] b { color: var(--gold); }
+.mode-switch button:disabled { opacity: .45; cursor: not-allowed; }
+
 .rules { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
 .rules li { font-size: 14px; line-height: 1.55; color: rgba(246, 241, 230, .88); }
 .rules strong { color: var(--gold); }
@@ -730,14 +793,20 @@ kbd {
     .readout { min-width: 0; flex: 1; padding: 5px 8px; }
 
     .felt { border-width: 6px; border-radius: 20px; }
+    /* The community caption is decorative; the dealer read is the whole game. */
     .lane-hint { display: none; }
+    #dealerRead { display: inline; }
 
-    .dock { flex-direction: column; gap: 10px; padding-top: 8px; }
-    .bet-rail { width: 100%; justify-content: center; }
-    .actions { width: 100%; min-width: 0; justify-content: stretch; }
-    .btn { flex: 1; padding: 13px 6px; letter-spacing: .06em; }
+    .btn { padding: 13px 4px; letter-spacing: .02em; font-size: 11.5px; }
     .btn kbd { display: none; }
+    .tally { margin-left: 3px; min-width: 1.2em; padding: 0 3px; }
     .shoe { display: none; }
+}
+
+/* Five action buttons on a small phone need every pixel. */
+@media (max-width: 400px) {
+    .actions { gap: 4px; }
+    .btn { font-size: 10px; padding: 12px 2px; }
 }
 
 @media (max-height: 560px) {

@@ -6,7 +6,19 @@ Blackjack's race to 21, played on a Texas Hold'em board. You and the dealer each
 hold a private hand, but a row of **community cards** in the middle counts toward
 *both* totals — so the card you ask for might be the card that saves the dealer.
 
-## The twist
+## Reading the dealer
+
+The dealer's card is face down — but the community row is public, and their
+total is just *hidden card + board*. That pins them to a range, and the game
+shows it: **`Dealer 10–19 · may share your card`**. When the board runs high
+you know for certain they'll stand; when it runs low you know for certain
+they'll draw. The murky middle is where the hand is actually played.
+
+## Two variants
+
+Pick either one from the rules dialog (`R`). Your choice is remembered.
+
+### Dealer's Call — the original
 
 When you hit, the dealer reacts in the same beat:
 
@@ -17,6 +29,22 @@ When you hit, the dealer reacts in the same beat:
 
 So every hit is a read on the dealer, not just a draw. Ask for a card while
 they're sitting on 12 and you may hand them the 9 they needed.
+
+### Your Call — you route the card
+
+You decide where every card lands:
+
+| Action | Where it goes | Cost |
+| --- | --- | --- |
+| **Board** | The community row — counts for both hands | Free, unlimited |
+| **Hand** | Your hand alone | Two per hand |
+
+The board is the aggressive line. Sitting on 8 while the dealer shows 16?
+Fire at the board — a ten breaks them and you can absorb it. Sitting on 15
+yourself? Spend one of your two private draws instead. Once the budget's
+gone, every card you take feeds the dealer too.
+
+## Both variants
 
 Stand, and the dealer draws privately until they reach 17 or bust.
 **Double** is on the table for your first action: double the wager, take one
@@ -35,8 +63,10 @@ If a community card busts you *and* the dealer, the hand is a push.
 
 ## Controls
 
-`↵` deal · `H` hit · `S` stand · `D` double · `1`–`4` place chips ·
+`↵` deal · `S` stand · `D` double · `1`–`4` place chips ·
 `M` mute · `R` rules · `Esc` dismiss
+
+`H` hit (Dealer's Call) · `B` board / `H` hand (Your Call)
 
 ## Running it
 

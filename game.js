@@ -41,6 +41,11 @@ const el = {
     soundBtn: $('soundBtn'),
     soundIcon: $('soundIcon'),
     fx: $('fx'),
+    dealerRead: $('dealerRead'),
+    boardBtn: $('boardBtn'),
+    handBtn: $('handBtn'),
+    handLeft: $('handLeft'),
+    modeSwitch: $('modeSwitch'),
     statHands: $('statHands'),
     statWins: $('statWins'),
     statRate: $('statRate'),
@@ -61,6 +66,10 @@ const DEALER_STANDS_ON = 17;
 const HOT_STREAK_AT = 3;
 const HOT_STREAK_BONUS = 0.25;
 const PERFECT_MULTIPLIER = 1.5;   // win on exactly 21 pays 3:2
+const PRIVATE_DRAWS = 2;          // "Your Call" mode: cards you may keep to yourself
+
+/* Every rank a face-down card could be, as a hand value. */
+const UNKNOWN_RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'A'];
 
 const PHASE = { BET: 'bet', DEALING: 'dealing', PLAYER: 'player', RESOLVING: 'resolving', OVER: 'over' };
 
@@ -94,8 +103,12 @@ const game = {
     hands: persisted.hands || 0,
     wins: persisted.wins || 0,
     best: persisted.best || (Number.isFinite(persisted.bankroll) ? persisted.bankroll : START_BANK),
-    seen: !!persisted.seen
+    seen: !!persisted.seen,
+    mode: persisted.mode === 'routed' ? 'routed' : 'classic',
+    privateLeft: PRIVATE_DRAWS
 };
+
+const routed = () => game.mode === 'routed';
 
 function persist() {
     save.write({
@@ -105,7 +118,8 @@ function persist() {
         hands: game.hands,
         wins: game.wins,
         best: game.best,
-        seen: game.seen
+        seen: game.seen,
+        mode: game.mode
     });
 }
 
@@ -204,6 +218,52 @@ function setPill(node, text, state) {
     node.dataset.state = state;
 }
 
+/**
+ * The dealer's cards are face down, but the community row is public — which
+ * pins their total to a range. Enumerating what the hidden cards could be
+ * turns "?" into information the player can actually act on.
+ * @returns {{min: number, max: number}|null}
+ */
+function dealerRange() {
+    const hidden = game.dealer.length;
+    if (hidden === 0 || hidden > 3) return null;   // 3 is already 1000 combinations
+
+    const totals = [];
+    const walk = (depth, cards) => {
+        if (depth === hidden) {
+            totals.push(handTotal(cards, game.shared).total);
+            return;
+        }
+        for (const rank of UNKNOWN_RANKS) walk(depth + 1, cards.concat({ rank }));
+    };
+    walk(0, []);
+
+    // A live hand means the dealer hasn't busted — every card that lands on the
+    // board is checked against them — so totals over 21 are ruled out.
+    const live = game.phase !== PHASE.OVER ? totals.filter(t => t <= 21) : [];
+    const feasible = live.length ? live : totals;
+    return { min: Math.min(...feasible), max: Math.max(...feasible) };
+}
+
+/** What the range implies the dealer will do, phrased for the active variant. */
+function dealerTell(range) {
+    if (!range) return { text: 'stands on 17', tone: '' };
+    if (range.min > 21) return { text: 'busted', tone: 'tell-pat' };
+
+    const mustHit = range.max < DEALER_STANDS_ON;
+    const mustStand = range.min >= DEALER_STANDS_ON;
+
+    // Kept short so the read still fits beside the pill on a phone.
+    if (routed()) {
+        if (mustHit) return { text: 'will draw', tone: 'tell-hit' };
+        if (mustStand) return { text: 'pat — done drawing', tone: 'tell-pat' };
+        return { text: 'may draw', tone: 'tell-maybe' };
+    }
+    if (mustHit) return { text: 'will share your card', tone: 'tell-hit' };
+    if (mustStand) return { text: 'card stays yours', tone: 'tell-pat' };
+    return { text: 'may share your card', tone: 'tell-maybe' };
+}
+
 function updateTotals() {
     const inPlay = game.player.length > 0;
 
@@ -213,10 +273,20 @@ function updateTotals() {
         pillState(p.total, inPlay));
 
     const d = handTotal(game.dealer, game.shared);
-    const dealerOpen = game.dealerRevealed;
-    setPill(el.dealerTotal,
-        !inPlay ? '—' : dealerOpen ? d.total : '?',
-        pillState(d.total, inPlay && dealerOpen));
+    if (!inPlay) {
+        setPill(el.dealerTotal, '—', 'idle');
+    } else if (game.dealerRevealed) {
+        setPill(el.dealerTotal, d.total, pillState(d.total, true));
+    } else {
+        const range = dealerRange();
+        if (!range) setPill(el.dealerTotal, '?', 'idle');
+        else if (range.min === range.max) setPill(el.dealerTotal, range.min, pillState(range.min, true));
+        else setPill(el.dealerTotal, `${range.min}–${range.max}`, 'range');
+    }
+
+    const tell = dealerTell(inPlay && !game.dealerRevealed ? dealerRange() : null);
+    el.dealerRead.textContent = tell.text;
+    el.dealerRead.className = 'lane-hint' + (tell.tone ? ' ' + tell.tone : '');
 }
 
 function updateShoe() {
@@ -264,9 +334,24 @@ function syncControls() {
 
     const broke = game.bankroll === 0 && game.bet === 0;
     el.dealBtn.disabled = !betting || (game.bet === 0 && !broke);
-    el.hitBtn.disabled = !playing;
     el.standBtn.disabled = !playing;
     el.doubleBtn.disabled = !playing || game.actedOnce || game.bankroll < game.bet;
+
+    el.hitBtn.hidden = routed();
+    el.boardBtn.hidden = !routed();
+    el.handBtn.hidden = !routed();
+    el.hitBtn.disabled = !playing;
+    el.boardBtn.disabled = !playing;
+    el.handBtn.disabled = !playing || game.privateLeft <= 0;
+    el.handLeft.textContent = game.privateLeft;
+
+    el.modeSwitch.querySelectorAll('button').forEach(b => {
+        b.setAttribute('aria-pressed', String(b.dataset.pick === game.mode));
+        b.disabled = !betting;
+    });
+    document.querySelectorAll('[data-variant]').forEach(node => {
+        node.hidden = node.dataset.variant !== game.mode;
+    });
 
     el.dealBtn.textContent = betting && broke ? 'Rebuy' : 'Deal';
     if (!el.dealBtn.querySelector('kbd')) {
@@ -316,6 +401,7 @@ async function startRound() {
     game.doubled = false;
     game.actedOnce = false;
     game.dealerRevealed = false;
+    game.privateLeft = PRIVATE_DRAWS;
     game.deck.reset();
 
     clearTable();
@@ -336,11 +422,21 @@ async function startRound() {
     const p = handTotal(game.player, game.shared);
     if (p.total === 21) {
         setStatus('Twenty-one off the deal. Stand and take it?');
+    } else if (routed()) {
+        setStatus('Your move — card to the <b>Board</b> or to your <b>Hand</b>.');
     } else {
         setStatus('Your move — <b>Hit</b>, <b>Stand</b>, or <b>Double</b>.');
     }
 }
 
+/** Puts a drawn card on the board, where it counts for both hands. */
+async function layOnBoard(card) {
+    highlightLane('shared');
+    const node = await dealTo(game.shared, el.sharedCards, card);
+    node.classList.add('shared-jump');
+}
+
+/** "Dealer's Call": the dealer's own total decides where your card lands. */
 async function playerHit({ fromDouble = false } = {}) {
     if (game.phase !== PHASE.PLAYER) return;
 
@@ -355,22 +451,56 @@ async function playerHit({ fromDouble = false } = {}) {
 
     setStatus('You call for a card — the dealer weighs it', { thinking: true });
     await sleep(760);
+    SFX.button();
 
     if (dealerHitsToo) {
         setStatus('Dealer takes one too — <b>this card is shared</b>.');
-        SFX.button();
         await sleep(520);
-        highlightLane('shared');
-        const node = await dealTo(game.shared, el.sharedCards, card);
-        node.classList.add('shared-jump');
+        await layOnBoard(card);
     } else {
         setStatus(`Dealer stands on ${dealerBefore}+ — <b>the card is yours alone</b>.`);
-        SFX.button();
         await sleep(520);
         highlightLane('player');
         await dealTo(game.player, el.playerCards, card);
     }
 
+    return afterDraw(fromDouble);
+}
+
+/**
+ * "Your Call": you route the card yourself. The board is the aggressive line —
+ * it can break a dealer sitting on 16, but it lifts your total too. Keeping a
+ * card to yourself is safe, and deliberately scarce.
+ */
+async function playerDraw(target, { fromDouble = false, free = false } = {}) {
+    if (game.phase !== PHASE.PLAYER) return;
+    if (target === 'hand' && !free && game.privateLeft <= 0) return;
+
+    game.phase = PHASE.RESOLVING;
+    game.actedOnce = true;
+    if (target === 'hand' && !free) game.privateLeft -= 1;
+    syncControls();
+    highlightLane(null);
+    SFX.button();
+
+    const card = game.deck.draw();
+
+    if (target === 'board') {
+        setStatus('Onto the board — <b>this card counts for both</b>.');
+        await sleep(420);
+        await layOnBoard(card);
+    } else {
+        setStatus('Into your hand — <b>yours alone</b>.');
+        await sleep(420);
+        highlightLane('player');
+        await dealTo(game.player, el.playerCards, card);
+    }
+
+    return afterDraw(fromDouble);
+}
+
+/** Shared settlement for both variants once a card has landed. */
+async function afterDraw(fromDouble) {
     await sleep(260);
     highlightLane(null);
 
@@ -385,7 +515,7 @@ async function playerHit({ fromDouble = false } = {}) {
     if (d > 21) {
         await revealDealer();
         markBust(el.dealerCards);
-        return finish('win', `The shared card busted the dealer at ${d}!`);
+        return finish('win', `The board broke the dealer at ${d}!`);
     }
 
     if (fromDouble) {
@@ -394,11 +524,7 @@ async function playerHit({ fromDouble = false } = {}) {
         return dealerPlay();
     }
 
-    if (p === 21) {
-        setStatus('Twenty-one! Stand and lock it in?');
-    } else {
-        setStatus('Your move.');
-    }
+    setStatus(p === 21 ? 'Twenty-one! Stand and lock it in?' : 'Your move.');
     game.phase = PHASE.PLAYER;
     highlightLane('player');
     syncControls();
@@ -413,7 +539,9 @@ async function playerDouble() {
     updateMoney(true);
     setStatus(`Doubled to <b>${money(game.bet)}</b> — one card only.`);
     await sleep(420);
-    await playerHit({ fromDouble: true });
+    // Doubling is already a commitment, so the card comes to your hand for free.
+    await (routed() ? playerDraw('hand', { fromDouble: true, free: true })
+                    : playerHit({ fromDouble: true }));
 }
 
 async function playerStand() {
@@ -668,8 +796,23 @@ el.rebet.addEventListener('click', () => {
 
 el.dealBtn.addEventListener('click', startRound);
 el.hitBtn.addEventListener('click', () => playerHit());
+el.boardBtn.addEventListener('click', () => playerDraw('board'));
+el.handBtn.addEventListener('click', () => playerDraw('hand'));
 el.standBtn.addEventListener('click', playerStand);
 el.doubleBtn.addEventListener('click', playerDouble);
+
+el.modeSwitch.addEventListener('click', e => {
+    const pick = e.target.closest('button[data-pick]');
+    if (!pick || pick.disabled || pick.dataset.pick === game.mode) return;
+    game.mode = pick.dataset.pick;
+    persist();
+    SFX.button();
+    syncControls();
+    updateTotals();
+    setStatus(routed()
+        ? "<b>Your Call</b> — you choose where every card lands."
+        : "<b>Dealer's Call</b> — the dealer decides where your card lands.");
+});
 
 el.rulesBtn.addEventListener('click', openRules);
 el.rulesClose.addEventListener('click', closeRules);
@@ -685,7 +828,11 @@ document.addEventListener('keydown', e => {
     if (key === 'escape') { closeRules(); hideOverlay(); return; }
     if (!el.rulesModal.classList.contains('hidden')) return;
 
-    if (key === 'h') { if (!el.hitBtn.disabled) playerHit(); }
+    if (key === 'h') {
+        if (routed()) { if (!el.handBtn.disabled) playerDraw('hand'); }
+        else if (!el.hitBtn.disabled) playerHit();
+    }
+    else if (key === 'b') { if (routed() && !el.boardBtn.disabled) playerDraw('board'); }
     else if (key === 's') { if (!el.standBtn.disabled) playerStand(); }
     else if (key === 'd') { if (!el.doubleBtn.disabled) playerDouble(); }
     else if (key === 'enter' || key === ' ') {
