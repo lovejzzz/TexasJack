@@ -4,24 +4,19 @@
 
 :root {
     --font-ui: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-    --font-card: 'Georgia', 'Times New Roman', serif;
     --font-num: 'DIN Alternate', 'Bahnschrift', 'Segoe UI', system-ui, sans-serif;
 
     --felt-1: #10634a;
     --felt-2: #0a4433;
     --felt-3: #052a20;
     --rail: #3a2216;
-    --rail-hi: #6b4429;
 
     --gold: #f2c76a;
     --gold-hot: #ffe6a8;
     --card-gold: #b98f3e;
-    --pip-red: #c8102e;
-    --pip-black: #1b1b1f;
 
     --good: #46e08b;
     --warn: #ffbe3d;
-    --bad: #ff5a5a;
 
     --ink: #f6f1e6;
     --ink-dim: rgba(246, 241, 230, .58);
@@ -30,7 +25,6 @@
        the felt, then width follows the 5:7 card ratio. */
     --card-h: clamp(84px, 18.5vh, 208px);
     --card-w: calc(var(--card-h) / 1.4);
-    --radius: 14px;
 }
 
 * { box-sizing: border-box; }

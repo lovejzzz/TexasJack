@@ -114,10 +114,8 @@ const game = {
     lastBet: persisted.lastBet || 0,
     streak: persisted.streak || 0,
     ante: 0,
-    raised: false,
     scouted: null,
     moneyUsed: false,
-    actedOnce: false,
     drawsTaken: 0,
     dealerRevealed: false,
     hands: persisted.hands || 0,
@@ -441,10 +439,8 @@ async function startRound() {
     game.shared = [];
     game.dealerBoard = [];
     game.ante = game.bet;
-    game.raised = false;
     game.scouted = null;
     game.moneyUsed = false;
-    game.actedOnce = false;
     game.drawsTaken = 0;
     game.dealerRevealed = false;
     game.privateLeft = PRIVATE_DRAWS;
@@ -457,11 +453,11 @@ async function startRound() {
     updateShoe();
     setStatus('Dealing…');
 
-    await dealTo(game.player, el.playerCards, game.deck.draw());
-    await dealTo(game.dealer, el.dealerCards, game.deck.draw(), { faceDown: true });
+    await dealTo(game.player, el.playerCards, drawCard());
+    await dealTo(game.dealer, el.dealerCards, drawCard(), { faceDown: true });
     // Routed through layOnBoard so the opening community card obeys the same
     // "dealer takes it only while under 17" rule as every later one.
-    await layOnBoard(game.deck.draw());
+    await layOnBoard(drawCard());
     highlightLane(null);
 
     game.phase = PHASE.PLAYER;
@@ -504,13 +500,11 @@ async function playerHit() {
     if (game.phase !== PHASE.PLAYER) return;
 
     game.phase = PHASE.RESOLVING;
-    game.actedOnce = true;
     game.drawsTaken += 1;
     syncControls();
     highlightLane(null);
 
-    const card = game.deck.draw();
-    clearScout();
+    const card = drawCard();
     const dealerBefore = handTotal(game.dealer, game.dealerBoard).total;
     const dealerHitsToo = dealerBefore < DEALER_STANDS_ON;
 
@@ -542,15 +536,13 @@ async function playerDraw(target, { free = false } = {}) {
     if (target === 'hand' && !free && game.privateLeft <= 0) return;
 
     game.phase = PHASE.RESOLVING;
-    game.actedOnce = true;
     game.drawsTaken += 1;
     if (target === 'hand' && !free) game.privateLeft -= 1;
     syncControls();
     highlightLane(null);
     SFX.button();
 
-    const card = game.deck.draw();
-    clearScout();
+    const card = drawCard();
 
     if (target === 'board') {
         setStatus('Onto the board — <b>this card counts for both</b>.');
@@ -617,7 +609,6 @@ function playerRaise() {
     if (amount <= 0) return;
     game.bankroll -= amount;
     game.bet += amount;
-    game.raised = true;
     game.moneyUsed = true;
     SFX.chip();
     updateMoney(true);
@@ -675,6 +666,16 @@ function clearScout() {
     renderScout();
 }
 
+/**
+ * Every card leaves the shoe through here, so a scouted card is cleared no
+ * matter who takes it — including the dealer drawing after you stand.
+ */
+function drawCard() {
+    const card = game.deck.draw();
+    clearScout();
+    return card;
+}
+
 async function playerStand() {
     if (game.phase !== PHASE.PLAYER) return;
     game.phase = PHASE.RESOLVING;
@@ -696,7 +697,7 @@ async function dealerPlay() {
     while (d < DEALER_STANDS_ON) {
         setStatus(`Dealer shows ${d} and draws`, { thinking: true });
         await sleep(620);
-        await dealTo(game.dealer, el.dealerCards, game.deck.draw());
+        await dealTo(game.dealer, el.dealerCards, drawCard());
         updateTotals();
         d = handTotal(game.dealer, game.dealerBoard).total;
     }
@@ -764,6 +765,8 @@ async function finish(outcome, message, { bust = false } = {}) {
 
     game.bankroll += payout;
     game.bet = 0;
+    game.moneyUsed = false;
+    clearScout();
     game.hands += 1;
     game.best = Math.max(game.best, game.bankroll);
     persist();
