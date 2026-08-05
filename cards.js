@@ -216,6 +216,12 @@
             return this.cards.pop();
         }
 
+        /** The card draw() would return next, without taking it. */
+        peek() {
+            if (this.cards.length === 0) this.reset();
+            return this.cards[this.cards.length - 1];
+        }
+
         get remaining() { return this.cards.length; }
     }
 

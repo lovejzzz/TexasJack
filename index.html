@@ -71,6 +71,11 @@
             <div class="shoe-stack"></div>
             <span class="shoe-count" id="shoeCount">52</span>
         </div>
+
+        <div class="scout-slot" id="scoutSlot" hidden>
+            <span class="scout-label">Next</span>
+            <div class="scout-card" id="scoutCard"></div>
+        </div>
     </main>
 
     <div class="status" id="status" role="status">Place your bet to begin.</div>
@@ -96,9 +101,9 @@
                     <span class="money-label">Raise</span>
                     <b id="raiseAmt">—</b><kbd>R</kbd>
                 </button>
-                <button class="money-btn peek" id="peekBtn" disabled>
-                    <span class="money-label">Peek the hole card</span>
-                    <b id="peekAmt">—</b><kbd>P</kbd>
+                <button class="money-btn scout" id="scoutBtn" disabled>
+                    <span class="money-label">Scout the shoe</span>
+                    <b id="scoutAmt">—</b><kbd>P</kbd>
                 </button>
             </div>
         </div>
@@ -154,13 +159,15 @@
                 they'll do next.</li>
             <li><strong>When you stand</strong>, the dealer draws privately until they reach 17 or bust.</li>
             <li><strong>One money move per hand — raise or peek, never both.</strong>
-                Back the read you already have, or pay to sharpen it. Not both.</li>
+                Back the read you already have, or pay for the card you can't see. Not both.</li>
             <li><strong>Raise</strong> adds up to half your ante, and the cap shrinks with every
                 card you take. Commit early against a wide range for the most leverage, or wait
                 for a sharper read and bet less on it.</li>
-            <li><strong>Peek</strong> buys the dealer's hole card for 2% of your ante. Early,
-                when the range spans ten points, that's cheap for what it tells you. Late, when
-                it already reads 18–21, you're paying for nothing.</li>
+            <li><strong>Scout</strong> buys a look at the top card of the shoe for a third of
+                your ante. The board already pins the dealer to a range, but nothing on the table
+                tells you what comes <em>next</em> — so it's the one thing you can't work out for
+                yourself, and it is priced like it. Buy it where it changes your mind, not every
+                hand.</li>
             <li><strong>A pat dealer stands aside.</strong> Community cards only count for the
                 dealer while they're under 17. Once they're pat, anything that lands on the board
                 is marked <em>yours</em> and counts for you alone.</li>
@@ -173,7 +180,7 @@
             <li><span>Win on exactly 21</span><b>3 : 2</b></li>
             <li><span>Push</span><b>bet returned</b></li>
             <li><span>Hot streak (3+ wins)</span><b>+25% bonus</b></li>
-            <li><span>Peek</span><b>costs 2% of the ante</b></li>
+            <li><span>Scout the shoe</span><b>costs a third of the ante</b></li>
         </ul>
         <h3>This session</h3>
         <ul class="stats" id="sessionStats">
@@ -187,7 +194,7 @@
             <kbd>↵</kbd> deal ·
             <span data-variant="classic"><kbd>H</kbd> hit</span>
             <span data-variant="routed"><kbd>B</kbd> board · <kbd>H</kbd> hand</span> ·
-            <kbd>S</kbd> stand · <kbd>R</kbd> raise · <kbd>P</kbd> peek ·
+            <kbd>S</kbd> stand · <kbd>R</kbd> raise · <kbd>P</kbd> scout ·
             <kbd>M</kbd> mute · <kbd>?</kbd> rules</p>
         <div class="modal-foot">
             <button class="btn btn-deal modal-cta" id="rulesGo">Deal me in</button>

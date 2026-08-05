@@ -31,9 +31,11 @@ const el = {
     hitBtn: $('hitBtn'),
     standBtn: $('standBtn'),
     raiseBtn: $('raiseBtn'),
-    peekBtn: $('peekBtn'),
+    scoutBtn: $('scoutBtn'),
+    scout: $('scoutSlot'),
+    scoutCard: $('scoutCard'),
     raiseAmt: $('raiseAmt'),
-    peekAmt: $('peekAmt'),
+    scoutAmt: $('scoutAmt'),
     playMoney: $('playMoney'),
     betControls: $('betControls'),
     overlay: $('resultOverlay'),
@@ -72,11 +74,13 @@ const HOT_STREAK_AT = 3;
 const HOT_STREAK_BONUS = 0.25;
 const PERFECT_MULTIPLIER = 1.5;   // win on exactly 21 pays 3:2
 const PRIVATE_DRAWS = 2;          // "Your Call" mode: cards you may keep to yourself
-/* Peek is priced just above what the hole card is actually worth. Measured over
-   20k hands, knowing it is worth ~1.4 points of edge — the range display
-   already carries most of the signal — so buying it every hand is a small
-   loss and buying it only when the range is wide is a small gain. */
-const PEEK_RATE = 0.02;
+/* Cost of scouting the shoe, as a share of the ante. Priced from measurement:
+   the top card is worth ~19 points of edge in Dealer's Call and ~23 in Your
+   Call — vastly more than the dealer's hole card was, because nothing on the
+   table implies it. Bought in the spots where it can change a decision that
+   works out to break-even at roughly a third of the ante, so buying it every
+   hand loses and buying it in the right spots is a small, real gain. */
+const SCOUT_RATE = 0.30;
 const RAISE_MAX = 0.5;            // most you may add to the wager, as a share of the ante
 
 /* Every rank a face-down card could be, as a hand value. */
@@ -111,7 +115,7 @@ const game = {
     streak: persisted.streak || 0,
     ante: 0,
     raised: false,
-    peeked: false,
+    scouted: null,
     moneyUsed: false,
     actedOnce: false,
     drawsTaken: 0,
@@ -378,10 +382,9 @@ function syncControls() {
     const cap = raiseCap();
     el.raiseBtn.disabled = !playing || cap <= 0;
     el.raiseAmt.textContent = cap > 0 ? '+' + money(cap) : '—';
-    const cost = peekCost();
-    el.peekBtn.disabled = !playing || game.moneyUsed || game.dealerRevealed || cost > game.bankroll;
-    el.peekAmt.textContent = game.peeked || game.dealerRevealed ? 'seen'
-                           : game.moneyUsed ? '—' : money(cost);
+    const cost = scoutCost();
+    el.scoutBtn.disabled = !playing || game.moneyUsed || cost > game.bankroll;
+    el.scoutAmt.textContent = game.moneyUsed ? '—' : money(cost);
 
     el.modeSwitch.querySelectorAll('button').forEach(b => {
         b.setAttribute('aria-pressed', String(b.dataset.pick === game.mode));
@@ -439,7 +442,7 @@ async function startRound() {
     game.dealerBoard = [];
     game.ante = game.bet;
     game.raised = false;
-    game.peeked = false;
+    game.scouted = null;
     game.moneyUsed = false;
     game.actedOnce = false;
     game.drawsTaken = 0;
@@ -448,6 +451,7 @@ async function startRound() {
     game.deck.reset();
 
     clearTable();
+    renderScout();
     hideOverlay();
     syncControls();
     updateShoe();
@@ -506,6 +510,7 @@ async function playerHit() {
     highlightLane(null);
 
     const card = game.deck.draw();
+    clearScout();
     const dealerBefore = handTotal(game.dealer, game.dealerBoard).total;
     const dealerHitsToo = dealerBefore < DEALER_STANDS_ON;
 
@@ -545,6 +550,7 @@ async function playerDraw(target, { free = false } = {}) {
     SFX.button();
 
     const card = game.deck.draw();
+    clearScout();
 
     if (target === 'board') {
         setStatus('Onto the board — <b>this card counts for both</b>.');
@@ -620,28 +626,53 @@ function playerRaise() {
     syncControls();
 }
 
-/** What it costs right now to buy a look at the dealer's hole card. */
-function peekCost() {
-    return Math.max(1, Math.round(game.ante * PEEK_RATE));
+/** What it costs right now to buy a look at the next card off the shoe. */
+function scoutCost() {
+    return Math.max(1, Math.round(game.ante * SCOUT_RATE));
 }
 
-async function playerPeek() {
-    if (game.phase !== PHASE.PLAYER || game.moneyUsed || game.dealerRevealed) return;
-    const cost = peekCost();
+/**
+ * Buys the top card of the shoe. Unlike the dealer's hole card — which the
+ * public board already pins to a nine-point range — nothing on the table
+ * implies what comes next, so this is information you cannot otherwise get.
+ */
+function playerScout() {
+    if (game.phase !== PHASE.PLAYER || game.moneyUsed) return;
+    const cost = scoutCost();
     if (cost > game.bankroll) return;
 
     game.bankroll -= cost;
-    game.peeked = true;
     game.moneyUsed = true;
+    game.scouted = game.deck.peek();
     SFX.chip();
     updateMoney();
     flyMoney(`−${money(cost)}`, true);
+    renderScout();
     syncControls();
+    setStatus(`Top of the shoe: <b>${cardName(game.scouted)}</b>.`);
+}
 
-    await revealDealer();
-    updateTotals();
-    setStatus(`You bought the look — dealer holds <b>${dealerTotal().total}</b>.`);
-    syncControls();
+function cardName(card) {
+    if (!card) return '';
+    const suit = window.TJCards.SUITS.find(s => s.key === card.suit);
+    return `${card.rank}${suit ? suit.glyph : ''}`;
+}
+
+function renderScout() {
+    const card = game.scouted;
+    el.scout.hidden = !card;
+    if (!card) { el.scoutCard.innerHTML = ''; return; }
+    el.scoutCard.innerHTML = cardFaceSVG(card);
+    el.scout.classList.remove('pop');
+    void el.scout.offsetWidth;
+    el.scout.classList.add('pop');
+}
+
+/** The scouted card is spent the moment anything is drawn. */
+function clearScout() {
+    if (!game.scouted) return;
+    game.scouted = null;
+    renderScout();
 }
 
 async function playerStand() {
@@ -901,7 +932,7 @@ el.boardBtn.addEventListener('click', () => playerDraw('board'));
 el.handBtn.addEventListener('click', () => playerDraw('hand'));
 el.standBtn.addEventListener('click', playerStand);
 el.raiseBtn.addEventListener('click', playerRaise);
-el.peekBtn.addEventListener('click', playerPeek);
+el.scoutBtn.addEventListener('click', playerScout);
 
 el.modeSwitch.addEventListener('click', e => {
     const pick = e.target.closest('button[data-pick]');
@@ -937,7 +968,7 @@ document.addEventListener('keydown', e => {
     else if (key === 'b') { if (routed() && !el.boardBtn.disabled) playerDraw('board'); }
     else if (key === 's') { if (!el.standBtn.disabled) playerStand(); }
     else if (key === 'r') { if (!el.raiseBtn.disabled) playerRaise(); }
-    else if (key === 'p') { if (!el.peekBtn.disabled) playerPeek(); }
+    else if (key === 'p') { if (!el.scoutBtn.disabled) playerScout(); }
     else if (key === 'enter' || key === ' ') {
         e.preventDefault();
         if (!el.dealBtn.disabled) startRound();

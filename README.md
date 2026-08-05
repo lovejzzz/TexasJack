@@ -61,16 +61,20 @@ hand is live you have two ways to back your read:
 | | What it does | Cost |
 | --- | --- | --- |
 | **Raise** | Adds to your wager | Up to half the ante, shrinking 25% per card you've taken |
-| **Peek** | Turns the dealer's hole card face up | 2% of the ante |
+| **Scout** | Turns the top card of the shoe face up | A third of the ante |
 
 The raise cap decaying is the point: commit early against a wide range for the
-most leverage, or wait for a sharper read and bet less on it. Peek works the
-other way round — early, when the range spans ten points, it's cheap for what
-it tells you; late, when it already reads 18–21, you're paying for nothing.
+most leverage, or wait for a sharper read and bet less on it.
 
-They're mutually exclusive because together they're broken: buying the hole
-card cheaply and *then* betting on the near-certainty measured at +5.5% to the
-player. Back the read you have, or pay to sharpen it — not both.
+Scout is deliberately expensive, because it's the one thing the table can't
+tell you. The board already pins the dealer to a range — the next card is pure
+unknown. Measured, knowing it is worth about **19 points of edge**, so a third
+of your ante is roughly what it's worth. Buy it on 14 against a hand that might
+break you and it pays; buy it every hand and you lose 16 points.
+
+They're mutually exclusive — one money move per hand. Together they're broken:
+buying information cheaply and *then* betting on the resulting near-certainty
+measured at +5.5% to the player.
 
 ## Payouts
 
@@ -86,7 +90,7 @@ too — you went over first. Pushes happen when both hands finish level.
 
 ## Controls
 
-`↵` deal · `S` stand · `R` raise · `P` peek · `1`–`4` place chips ·
+`↵` deal · `S` stand · `R` raise · `P` scout · `1`–`4` place chips ·
 `M` mute · `?` rules · `Esc` dismiss
 
 `H` hit (Dealer's Call) · `B` board / `H` hand (Your Call)
