@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#0b2a1f">
     <meta name="description" content="Texas Jack — Blackjack meets Texas Hold'em. Every card you draw might belong to the dealer too.">
     <title>Texas Jack</title>
+    <link rel="icon" type="image/png" href="asset/title.png">
     <link rel="preload" as="image" href="asset/Win.png">
     <link rel="preload" as="image" href="asset/Lose.png">
     <link rel="stylesheet" href="styles.css">
@@ -120,7 +121,7 @@
 </div>
 
 <!-- Result splash --------------------------------------------------------- -->
-<div id="resultOverlay" class="overlay hidden" aria-hidden="true">
+<div id="resultOverlay" class="overlay hidden" role="status" aria-live="assertive" aria-atomic="true" aria-hidden="true">
     <img id="resultImage" src="" alt="">
     <div id="resultPayout" class="result-payout"></div>
 </div>
@@ -197,7 +198,7 @@
             <kbd>S</kbd> stand · <kbd>R</kbd> raise · <kbd>P</kbd> scout ·
             <kbd>M</kbd> mute · <kbd>?</kbd> rules</p>
         <div class="modal-foot">
-            <button class="btn btn-deal modal-cta" id="rulesGo">Deal me in</button>
+            <button class="btn btn-deal modal-cta" id="rulesGo">Got it</button>
         </div>
     </div>
 </div>

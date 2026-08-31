@@ -1,0 +1,7 @@
+{
+  "name": "texas-jack",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

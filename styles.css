@@ -218,14 +218,14 @@ button { font-family: inherit; }
 }
 
 .lane-hint {
-    font-size: clamp(9px, 1.3vh, 11px);
-    color: rgba(255, 235, 190, .55);
+    font-size: clamp(10px, 1.3vh, 12px);
+    color: rgba(255, 245, 220, .86);
     letter-spacing: .04em;
 }
 .lane-hint em { color: var(--gold); font-style: normal; font-weight: 700; }
 .lane-hint.tell-hit  { color: #ffbe3d; }
 .lane-hint.tell-pat  { color: rgba(70, 224, 139, .9); }
-.lane-hint.tell-maybe { color: rgba(255, 235, 190, .7); }
+.lane-hint.tell-maybe { color: rgba(255, 245, 220, .92); }
 
 .lane-community {
     background: linear-gradient(180deg, rgba(255, 231, 176, .09), rgba(255, 231, 176, .02));
@@ -895,8 +895,23 @@ kbd {
     .btn { font-size: 10px; padding: 12px 2px; }
 }
 
-@media (max-height: 560px) {
+@media (orientation: landscape) and (max-height: 560px) {
+    :root { --card-h: clamp(92px, 34vh, 132px); }
+
     .brand { height: 24px; }
+    .felt {
+        flex-direction: row;
+        align-items: stretch;
+        gap: 6px;
+        padding: 8px 10px;
+    }
+    .lane { min-width: 0; padding: 6px 8px; }
+    .lane-community { flex: 1.2; }
+    .lane-player .cards,
+    .lane-dealer .cards,
+    .lane-community .cards { justify-content: center; }
+    .shoe,
+    .scout-slot { display: none !important; }
     .lane-head { gap: 6px; }
     .status { min-height: 1.2em; font-size: 12px; }
 }

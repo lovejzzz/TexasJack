@@ -104,6 +104,12 @@ or serve the folder:
 npx http-server .
 ```
 
+Run the zero-dependency card and shoe tests with:
+
+```bash
+npm test
+```
+
 ## How it's built
 
 | File | What's in it |

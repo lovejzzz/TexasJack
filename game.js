@@ -10,6 +10,7 @@ const { Deck, cardFaceSVG, cardBackSVG, handTotal } = window.TJCards;
 const $ = id => document.getElementById(id);
 
 const el = {
+    table: document.querySelector('.table'),
     felt: $('felt'),
     dealerCards: $('dealerCards'),
     sharedCards: $('sharedCards'),
@@ -154,15 +155,29 @@ const dealerTotal = () => handTotal(game.dealer, game.dealerBoard);
 
 /* ---- Rendering ----------------------------------------------------------- */
 
-function makeCardEl(card, faceDown) {
+function accessibleCardName(card) {
+    const suit = window.TJCards.SUITS.find(s => s.key === card.suit);
+    return `${card.rank} of ${suit ? suit.name : card.suit}`;
+}
+
+function setCardAccessibility(node, card, concealed) {
+    node.setAttribute('role', 'img');
+    node.setAttribute('aria-label', concealed ? 'Face-down card' : accessibleCardName(card));
+    node.querySelectorAll('svg').forEach(svg => svg.setAttribute('aria-hidden', 'true'));
+}
+
+function makeCardEl(card, concealed) {
     const node = document.createElement('div');
-    node.className = 'card' + (faceDown ? ' face-down' : '');
+    // Every card arrives face-down for the flip animation. Accessibility tracks
+    // whether the card is actually secret, independently of that animation.
+    node.className = 'card face-down';
     node.dataset.cid = card.id;
     node.innerHTML =
         `<div class="card-inner">
              <div class="card-face front">${cardFaceSVG(card)}</div>
              <div class="card-face back">${cardBackSVG()}</div>
          </div>`;
+    setCardAccessibility(node, card, concealed);
     return node;
 }
 
@@ -188,7 +203,7 @@ function flyFromShoe(node) {
  */
 async function dealTo(hand, container, card, { faceDown = false, flipAfter = true, quiet = false } = {}) {
     hand.push(card);
-    const node = makeCardEl(card, true);
+    const node = makeCardEl(card, faceDown);
     container.appendChild(node);
     reflow(container);
     flyFromShoe(node);
@@ -222,6 +237,8 @@ function revealDealer() {
     game.dealerRevealed = true;
     const hidden = el.dealerCards.querySelectorAll('.card.face-down');
     hidden.forEach((node, i) => setTimeout(() => {
+        const card = game.dealer.find(item => String(item.id) === node.dataset.cid);
+        if (card) setCardAccessibility(node, card, false);
         node.classList.remove('face-down');
         SFX.flip();
     }, i * 130));
@@ -471,7 +488,7 @@ async function startRound() {
     } else if (routed()) {
         setStatus('Your move — card to the <b>Board</b> or to your <b>Hand</b>.');
     } else {
-        setStatus('Your move — <b>Hit</b>, <b>Stand</b>, or <b>Double</b>.');
+        setStatus('Your move — <b>Hit</b>, <b>Stand</b>, or <b>Raise</b>.');
     }
 }
 
@@ -489,6 +506,7 @@ async function layOnBoard(card) {
     node.classList.add('shared-jump');
     if (!dealerTakes) {
         node.classList.add('solo');
+        node.setAttribute('aria-label', `${accessibleCardName(card)}, yours only`);
         node.insertAdjacentHTML('beforeend', '<span class="card-tag">yours</span>');
     }
     updateTotals();
@@ -652,8 +670,16 @@ function cardName(card) {
 function renderScout() {
     const card = game.scouted;
     el.scout.hidden = !card;
-    if (!card) { el.scoutCard.innerHTML = ''; return; }
+    if (!card) {
+        el.scoutCard.innerHTML = '';
+        el.scoutCard.removeAttribute('role');
+        el.scoutCard.removeAttribute('aria-label');
+        return;
+    }
     el.scoutCard.innerHTML = cardFaceSVG(card);
+    el.scoutCard.setAttribute('role', 'img');
+    el.scoutCard.setAttribute('aria-label', `Next card: ${accessibleCardName(card)}`);
+    el.scoutCard.querySelector('svg')?.setAttribute('aria-hidden', 'true');
     el.scout.classList.remove('pop');
     void el.scout.offsetWidth;
     el.scout.classList.add('pop');
@@ -744,13 +770,14 @@ async function finish(outcome, message, { bust = false } = {}) {
     let detail = '';
 
     if (outcome === 'win') {
+        const nextStreak = game.streak + 1;
         const perfect = playerTotal === 21;
-        const hot = game.streak >= HOT_STREAK_AT;
+        const hot = nextStreak >= HOT_STREAK_AT;
         let profit = wager * (perfect ? PERFECT_MULTIPLIER : 1);
         if (hot) profit *= 1 + HOT_STREAK_BONUS;
         profit = Math.round(profit);
         payout = wager + profit;
-        game.streak += 1;
+        game.streak = nextStreak;
         game.wins += 1;
         detail = `+${money(profit)}`;
         if (perfect) detail += ' · 21 pays 3:2';
@@ -797,7 +824,7 @@ async function finish(outcome, message, { bust = false } = {}) {
             setStatus("You're tapped out. Take a rebuy and get back in.");
         } else {
             setStatus(game.streak >= HOT_STREAK_AT
-                ? `${game.streak} in a row — next win carries a 25% bonus.`
+                ? `${game.streak} in a row — the hot streak bonus is active.`
                 : 'Place your bet for the next hand.');
         }
     }, 2100);
@@ -829,10 +856,12 @@ function flyMoney(text, negative = false) {
 
 function showSplash(kind, detail) {
     const src = { win: 'Win.png', lose: 'Lose.png', tie: 'Tie.png', bust: 'Bust.png' }[kind];
+    const alt = { win: 'You win', lose: 'You lose', tie: 'Push', bust: 'You bust' }[kind];
     el.resultImage.src = `asset/${src}`;
-    el.resultImage.alt = kind;
+    el.resultImage.alt = alt;
     el.resultPayout.textContent = detail || '';
     el.resultPayout.classList.toggle('negative', kind === 'lose' || kind === 'bust');
+    el.overlay.setAttribute('aria-hidden', 'false');
     el.overlay.classList.remove('hidden');
     // restart the CSS animation
     el.resultImage.style.animation = 'none';
@@ -844,6 +873,7 @@ function showSplash(kind, detail) {
 
 function hideOverlay() {
     el.overlay.classList.add('hidden');
+    el.overlay.setAttribute('aria-hidden', 'true');
 }
 
 /* confetti ------------------------------------------------------------------ */
@@ -910,8 +940,35 @@ function updateStats() {
     el.statBest.textContent = money(game.best);
 }
 
-function openRules() { updateStats(); el.rulesModal.classList.remove('hidden'); }
-function closeRules() { el.rulesModal.classList.add('hidden'); }
+let rulesReturnFocus = null;
+
+function rulesFocusables() {
+    return [...el.rulesModal.querySelectorAll('button:not(:disabled), [href], [tabindex]:not([tabindex="-1"])')]
+        .filter(node => !node.hidden);
+}
+
+function openRules() {
+    if (!el.rulesModal.classList.contains('hidden')) return;
+    updateStats();
+    rulesReturnFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body
+        ? document.activeElement
+        : null;
+    el.rulesModal.querySelector('.modal-card').scrollTop = 0;
+    el.rulesModal.classList.remove('hidden');
+    el.table.setAttribute('inert', '');
+    el.overlay.setAttribute('inert', '');
+    requestAnimationFrame(() => el.rulesClose.focus());
+}
+
+function closeRules() {
+    if (el.rulesModal.classList.contains('hidden')) return;
+    el.rulesModal.classList.add('hidden');
+    el.table.removeAttribute('inert');
+    el.overlay.removeAttribute('inert');
+    const target = rulesReturnFocus && document.contains(rulesReturnFocus) ? rulesReturnFocus : el.rulesBtn;
+    rulesReturnFocus = null;
+    requestAnimationFrame(() => target.focus());
+}
 
 function syncSoundIcon() {
     el.soundIcon.textContent = SFX.muted ? '🔇' : '🔊';
@@ -962,7 +1019,28 @@ document.addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const key = e.key.toLowerCase();
     if (key === 'escape') { closeRules(); hideOverlay(); return; }
-    if (!el.rulesModal.classList.contains('hidden')) return;
+    if (!el.rulesModal.classList.contains('hidden')) {
+        if (key === 'tab') {
+            const focusables = rulesFocusables();
+            if (!focusables.length) return;
+            const first = focusables[0];
+            const last = focusables[focusables.length - 1];
+            if (!el.rulesModal.contains(document.activeElement)) {
+                e.preventDefault();
+                (e.shiftKey ? last : first).focus();
+            } else if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        }
+        return;
+    }
+
+    const interactiveTarget = e.target instanceof Element &&
+        e.target.closest('button, a, input, select, textarea, [contenteditable="true"], [role="button"]');
 
     if (key === 'h') {
         if (routed()) { if (!el.handBtn.disabled) playerDraw('hand'); }
@@ -972,7 +1050,7 @@ document.addEventListener('keydown', e => {
     else if (key === 's') { if (!el.standBtn.disabled) playerStand(); }
     else if (key === 'r') { if (!el.raiseBtn.disabled) playerRaise(); }
     else if (key === 'p') { if (!el.scoutBtn.disabled) playerScout(); }
-    else if (key === 'enter' || key === ' ') {
+    else if (key === 'enter' && !interactiveTarget) {
         e.preventDefault();
         if (!el.dealBtn.disabled) startRound();
         else if (game.phase === PHASE.BET && game.bankroll === 0) rebuy();
