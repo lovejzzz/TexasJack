@@ -4,7 +4,7 @@
    ========================================================================== */
 
 const { Deck, cardFaceSVG, cardBackSVG, handTotal } = window.TJCards;
-const { tableGoal, tableGoalComplete, pressOffer, decisionInsight } = window.TJRules;
+const { tableGoal, tableGoalComplete, pressOffer, dealerMove, decisionInsight } = window.TJRules;
 
 /* ---- DOM ----------------------------------------------------------------- */
 
@@ -58,6 +58,7 @@ const el = {
     soundLabel: $('soundLabel'),
     fx: $('fx'),
     dealerRead: $('dealerRead'),
+    dealerCounter: $('dealerCounter'),
     boardBtn: $('boardBtn'),
     handBtn: $('handBtn'),
     handLeft: $('handLeft'),
@@ -133,6 +134,8 @@ const game = {
     challenge: null,
     challengeCompleted: false,
     dealerRevealed: false,
+    dealerCounter: 1,
+    dealerIntent: null,
     hands: persisted.hands || 0,
     wins: persisted.wins || 0,
     best: persisted.best || (Number.isFinite(persisted.bankroll) ? persisted.bankroll : START_BANK),
@@ -263,6 +266,7 @@ function clearTable() {
     el.sharedCards.innerHTML = '';
     el.playerCards.innerHTML = '';
     Object.values(laneOf).forEach(lane => lane.classList.remove('winner', 'perfect-win'));
+    laneOf.dealer.classList.remove('countering');
 }
 
 function revealDealer() {
@@ -361,9 +365,16 @@ function updateTotals() {
         else setPill(el.dealerTotal, `${range.min}–${range.max}`, 'range');
     }
 
-    const tell = dealerTell(inPlay && !game.dealerRevealed ? dealerRange() : null);
+    const tell = game.dealerRevealed && game.dealerIntent
+        ? game.dealerIntent
+        : dealerTell(inPlay && !game.dealerRevealed ? dealerRange() : null);
     el.dealerRead.textContent = tell.text;
     el.dealerRead.className = 'lane-hint' + (tell.tone ? ' ' + tell.tone : '');
+    el.dealerCounter.classList.toggle('spent', game.dealerCounter <= 0);
+    el.dealerCounter.textContent = game.dealerCounter > 0 ? 'Counter 1' : 'Counter 0';
+    el.dealerCounter.setAttribute('aria-label', game.dealerCounter > 0
+        ? 'Dealer counter available'
+        : 'Dealer counter spent');
 }
 
 function updateShoe() {
@@ -522,6 +533,8 @@ async function startRound() {
     game.boardBrokeDealer = false;
     game.challengeCompleted = false;
     game.dealerRevealed = false;
+    game.dealerCounter = 1;
+    game.dealerIntent = null;
     game.privateLeft = PRIVATE_DRAWS;
     game.challenge = tableGoal(game.mode, game.hands, game.ante);
     game.deck.reset();
@@ -800,19 +813,64 @@ async function dealerPlay() {
     await revealDealer();
     updateTotals();
 
-    let d = handTotal(game.dealer, game.dealerBoard).total;
     const p = handTotal(game.player, game.shared).total;
 
-    while (d < DEALER_STANDS_ON) {
-        setStatus(`Dealer shows ${d} and draws`, { thinking: true });
+    while (true) {
+        const dealerState = handTotal(game.dealer, game.dealerBoard);
+        const d = dealerState.total;
+        const move = dealerMove({
+            dealerTotal: d,
+            playerTotal: p,
+            soft: dealerState.soft,
+            pressureAvailable: game.dealerCounter > 0
+        });
+
+        if (!move.draw) {
+            if (move.intent === 'protect') {
+                game.dealerIntent = { text: `protects ${d} over ${p}`, tone: 'tell-pat' };
+                setStatus(`Dealer protects the lead: <b>${d}–${p}</b>.`);
+            } else if (move.intent === 'hold-push') {
+                game.dealerIntent = { text: `holds the ${d} push`, tone: 'tell-maybe' };
+                setStatus(`Dealer takes the push at <b>${d}</b>.`);
+            } else if (move.intent === 'concede') {
+                game.dealerIntent = { text: `counter spent · trails ${p}`, tone: 'tell-hit' };
+                setStatus(`Counter spent — dealer cannot catch your <b>${p}</b>.`);
+            } else if (move.intent === 'hold') {
+                game.dealerIntent = { text: d === 21 ? 'locks 21' : `holds ${d}`, tone: 'tell-pat' };
+                setStatus(d === 21 ? 'Dealer locks in <b>21</b>.' : `Dealer holds at <b>${d}</b>.`);
+            }
+            updateTotals();
+            break;
+        }
+
+        if (move.usesCounter) {
+            game.dealerCounter = 0;
+            laneOf.dealer.classList.add('countering');
+            setTimeout(() => laneOf.dealer.classList.remove('countering'), 1500);
+            SFX.counter();
+        }
+
+        if (move.intent === 'attack-tie') {
+            game.dealerIntent = { text: `attacks the ${d} tie`, tone: 'tell-hit' };
+            setStatus(`Dealer spends its <b>Counter</b> to attack the ${d} tie.`, { thinking: true });
+        } else if (move.intent === 'counter') {
+            game.dealerIntent = { text: `counters your ${p}`, tone: 'tell-hit' };
+            setStatus(`Dealer counters from <b>${d}</b> — chasing your <b>${p}</b>.`, { thinking: true });
+        } else {
+            game.dealerIntent = { text: `building from ${d}`, tone: 'tell-maybe' };
+            setStatus(`Dealer trails <b>${d}–${p}</b> and draws.`, { thinking: true });
+        }
+        updateTotals();
         await sleep(620);
         await dealTo(game.dealer, el.dealerCards, drawCard());
         updateTotals();
-        d = handTotal(game.dealer, game.dealerBoard).total;
+        if (handTotal(game.dealer, game.dealerBoard).total > 21) break;
     }
 
     highlightLane(null);
     await sleep(420);
+
+    const d = handTotal(game.dealer, game.dealerBoard).total;
 
     // Player first, to stay consistent with the bust rule above.
     if (p > 21) {

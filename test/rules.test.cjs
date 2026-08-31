@@ -79,6 +79,17 @@ test('a known scouted card freezes only its current press window', () => {
     assert.equal(reopened.amount, 10);
 });
 
+test('dealer AI chases from behind, protects a lead, and values a push', () => {
+    assert.equal(rules.dealerMove({ dealerTotal: 16, playerTotal: 19 }).intent, 'build');
+    assert.equal(rules.dealerMove({ dealerTotal: 18, playerTotal: 20 }).intent, 'counter');
+    assert.equal(rules.dealerMove({ dealerTotal: 18, playerTotal: 20, pressureAvailable: false }).intent, 'concede');
+    assert.equal(rules.dealerMove({ dealerTotal: 18, playerTotal: 17 }).intent, 'protect');
+    assert.equal(rules.dealerMove({ dealerTotal: 12, playerTotal: 12 }).intent, 'attack-tie');
+    assert.equal(rules.dealerMove({ dealerTotal: 12, playerTotal: 12, pressureAvailable: false }).intent, 'hold-push');
+    assert.equal(rules.dealerMove({ dealerTotal: 17, playerTotal: 17 }).intent, 'hold-push');
+    assert.equal(rules.dealerMove({ dealerTotal: 21, playerTotal: 21 }).draw, false);
+});
+
 test('round insight explains the decision that shaped the hand', () => {
     assert.match(rules.decisionInsight({
         outcome: 'win', challengeWon: true, challengeText: 'Finish on exactly 21'

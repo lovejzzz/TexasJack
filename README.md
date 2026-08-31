@@ -14,9 +14,22 @@ shows it: **`Dealer 10–19 · may share your card`**. When the board runs high
 you know for certain they'll stand; when it runs low you know for certain
 they'll draw. The murky middle is where the hand is actually played.
 
+## The dealer fights back
+
+At showdown the dealer plays against your final score rather than mindlessly
+stopping on 17. From behind they build toward your number; ahead they protect
+the lead. Each hand also gives them one visible **Counter**: after reaching 17,
+they may spend it on one extra blind draw to chase you, or attack a low tie when
+the full-shoe odds favor the risk. Once Counter is spent, it is gone for that
+hand.
+
+The dealer never peeks at the next card. Its decision uses only the revealed
+scores, soft-hand state, and public full-shoe rank odds, so the opponent feels
+responsive without cheating.
+
 ## Two variants
 
-Pick either one from the rules dialog (`R`). Your choice is remembered.
+Pick either one from the rules dialog (`?`). Your choice is remembered.
 
 ### Dealer's Call — the original
 
@@ -134,6 +147,12 @@ Run the zero-dependency card, shoe, table-goal, and decision-feedback tests with
 npm test
 ```
 
+Run the reproducible dealer balance harness (50,000 hands by default) with:
+
+```bash
+npm run simulate:ai
+```
+
 ## How it's built
 
 | File | What's in it |
@@ -143,8 +162,9 @@ npm test
 | `cards.js` | The deck, and every card face drawn as inline SVG |
 | `audio.js` | All sound effects, synthesised with the Web Audio API |
 | `asset/ui-icons.svg` | Custom brass-table icons for tools, decisions, and actions |
-| `rules.js` | Pure table-goal rotation, completion, and decision feedback rules |
+| `rules.js` | Pure table-goal, Press, dealer-AI, and decision-feedback rules |
 | `game.js` | Game state machine, dealing, betting, settlement |
+| `scripts/simulate-ai.cjs` | Seeded batch harness comparing fixed-17 and adaptive dealers |
 
 Nothing is fetched at runtime. Card faces are generated as vectors rather than
 loaded as images, so they stay sharp at any size and the game plays offline.

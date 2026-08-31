@@ -2,6 +2,7 @@
   "name": "texas-jack",
   "private": true,
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "simulate:ai": "node scripts/simulate-ai.cjs"
   }
 }

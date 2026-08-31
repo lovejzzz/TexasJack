@@ -82,6 +82,11 @@ const SFX = (() => {
             tone({ freq: 1180, dur: 0.06, type: 'square', gain: 0.05, delay: 0.01 });
         },
         button() { tone({ freq: 520, dur: 0.07, type: 'sine', gain: 0.10 }); },
+        counter() {
+            tone({ freq: 196, dur: 0.22, type: 'sawtooth', gain: 0.10 });
+            tone({ freq: 293.66, dur: 0.28, type: 'triangle', gain: 0.16, delay: 0.12 });
+            burst({ dur: 0.16, freq: 1800, q: 2.2, gain: 0.16, sweep: -900 });
+        },
 
         win() {
             [523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
