@@ -4,6 +4,7 @@
    ========================================================================== */
 
 const { Deck, cardFaceSVG, cardBackSVG, handTotal } = window.TJCards;
+const { tableGoal, tableGoalComplete, decisionInsight } = window.TJRules;
 
 /* ---- DOM ----------------------------------------------------------------- */
 
@@ -37,11 +38,17 @@ const el = {
     scoutCard: $('scoutCard'),
     raiseAmt: $('raiseAmt'),
     scoutAmt: $('scoutAmt'),
+    raiseDetail: $('raiseDetail'),
+    scoutDetail: $('scoutDetail'),
+    challengeBox: $('challengeBox'),
+    challengeText: $('challengeText'),
+    challengeReward: $('challengeReward'),
     playMoney: $('playMoney'),
     betControls: $('betControls'),
     overlay: $('resultOverlay'),
     resultImage: $('resultImage'),
     resultPayout: $('resultPayout'),
+    resultInsight: $('resultInsight'),
     rulesModal: $('rulesModal'),
     rulesBtn: $('rulesBtn'),
     rulesClose: $('rulesClose'),
@@ -117,7 +124,12 @@ const game = {
     ante: 0,
     scouted: null,
     moneyUsed: false,
+    moneyAction: null,
+    raisedAtDraw: null,
     drawsTaken: 0,
+    boardBrokeDealer: false,
+    challenge: null,
+    challengeCompleted: false,
     dealerRevealed: false,
     hands: persisted.hands || 0,
     wins: persisted.wins || 0,
@@ -397,9 +409,28 @@ function syncControls() {
     const cap = raiseCap();
     el.raiseBtn.disabled = !playing || cap <= 0;
     el.raiseAmt.textContent = cap > 0 ? '+' + money(cap) : '—';
+    el.raiseBtn.classList.toggle('attention', playing && cap > 0 && game.drawsTaken === 0);
+    if (game.moneyAction === 'raise') {
+        el.raiseDetail.textContent = `Committed at ${money(game.bet)}`;
+    } else if (game.moneyUsed) {
+        el.raiseDetail.textContent = 'One money move already used';
+    } else if (cap > 0) {
+        el.raiseDetail.textContent = `Total wager ${money(game.bet + cap)} · ${game.drawsTaken ? 'window narrowed' : 'best price now'}`;
+    } else {
+        el.raiseDetail.textContent = 'No raise available';
+    }
     const cost = scoutCost();
     el.scoutBtn.disabled = !playing || game.moneyUsed || cost > game.bankroll;
     el.scoutAmt.textContent = game.moneyUsed ? '—' : money(cost);
+    el.scoutDetail.textContent = game.moneyAction === 'scout'
+        ? 'Information bought this hand'
+        : game.moneyUsed ? 'One money move already used' : 'Reveal the next card';
+
+    if (game.challenge) {
+        el.challengeText.textContent = game.challenge.text;
+        el.challengeReward.textContent = `+${money(game.challenge.reward)}`;
+        el.challengeBox.classList.toggle('cleared', game.challengeCompleted);
+    }
 
     el.modeSwitch.querySelectorAll('button').forEach(b => {
         b.setAttribute('aria-pressed', String(b.dataset.pick === game.mode));
@@ -458,9 +489,14 @@ async function startRound() {
     game.ante = game.bet;
     game.scouted = null;
     game.moneyUsed = false;
+    game.moneyAction = null;
+    game.raisedAtDraw = null;
     game.drawsTaken = 0;
+    game.boardBrokeDealer = false;
+    game.challengeCompleted = false;
     game.dealerRevealed = false;
     game.privateLeft = PRIVATE_DRAWS;
+    game.challenge = tableGoal(game.mode, game.hands, game.ante);
     game.deck.reset();
 
     clearTable();
@@ -517,6 +553,7 @@ async function layOnBoard(card) {
 async function playerHit() {
     if (game.phase !== PHASE.PLAYER) return;
 
+    const capBefore = raiseCap();
     game.phase = PHASE.RESOLVING;
     game.drawsTaken += 1;
     syncControls();
@@ -541,7 +578,7 @@ async function playerHit() {
         await dealTo(game.player, el.playerCards, card);
     }
 
-    return afterDraw();
+    return afterDraw({ capBefore });
 }
 
 /**
@@ -553,6 +590,7 @@ async function playerDraw(target, { free = false } = {}) {
     if (game.phase !== PHASE.PLAYER) return;
     if (target === 'hand' && !free && game.privateLeft <= 0) return;
 
+    const capBefore = raiseCap();
     game.phase = PHASE.RESOLVING;
     game.drawsTaken += 1;
     if (target === 'hand' && !free) game.privateLeft -= 1;
@@ -573,11 +611,11 @@ async function playerDraw(target, { free = false } = {}) {
         await dealTo(game.player, el.playerCards, card);
     }
 
-    return afterDraw();
+    return afterDraw({ capBefore });
 }
 
 /** Shared settlement for both variants once a card has landed. */
-async function afterDraw() {
+async function afterDraw({ capBefore = 0 } = {}) {
     await sleep(260);
     highlightLane(null);
 
@@ -595,15 +633,23 @@ async function afterDraw() {
             { bust: true });
     }
     if (d > 21) {
+        game.boardBrokeDealer = true;
         await revealDealer();
         markBust(el.dealerCards);
         return finish('win', `The board broke the dealer at ${d}!`);
     }
 
-    setStatus(p === 21 ? 'Twenty-one! Stand and lock it in?' : 'Your move.');
     game.phase = PHASE.PLAYER;
     highlightLane('player');
     syncControls();
+    const capAfter = raiseCap();
+    if (p === 21) {
+        setStatus('Twenty-one! Stand and lock it in?');
+    } else if (capBefore > capAfter && capAfter > 0 && !game.moneyUsed) {
+        setStatus(`Raise window narrowed: <b>${money(capBefore)} → ${money(capAfter)}</b>. Your move.`);
+    } else {
+        setStatus('Your move.');
+    }
 }
 
 /* ---- Money actions ------------------------------------------------------- */
@@ -628,10 +674,12 @@ function playerRaise() {
     game.bankroll -= amount;
     game.bet += amount;
     game.moneyUsed = true;
+    game.moneyAction = 'raise';
+    game.raisedAtDraw = game.drawsTaken;
     SFX.chip();
     updateMoney(true);
     flyMoney(`−${money(amount)}`, true);
-    setStatus(`Raised to <b>${money(game.bet)}</b>.`);
+    setStatus(`Read backed — <b>${money(game.bet)}</b> is now in play.`);
     syncControls();
 }
 
@@ -652,6 +700,7 @@ function playerScout() {
 
     game.bankroll -= cost;
     game.moneyUsed = true;
+    game.moneyAction = 'scout';
     game.scouted = game.deck.peek();
     SFX.chip();
     updateMoney();
@@ -790,9 +839,31 @@ async function finish(outcome, message, { bust = false } = {}) {
         detail = `−${money(wager)}`;
     }
 
+    const challengeState = {
+        outcome,
+        mode: game.mode,
+        playerTotal,
+        moneyAction: game.moneyAction,
+        raisedAtDraw: game.raisedAtDraw,
+        boardBrokeDealer: game.boardBrokeDealer,
+        privateLeft: game.privateLeft
+    };
+    const challengeWon = tableGoalComplete(game.challenge, challengeState);
+    game.challengeCompleted = challengeWon;
+    if (challengeWon) {
+        payout += game.challenge.reward;
+        detail += ` · table goal +${money(game.challenge.reward)}`;
+    }
+    const insight = decisionInsight({
+        ...challengeState,
+        challengeWon,
+        challengeText: game.challenge ? game.challenge.text : '',
+        drawsTaken: game.drawsTaken,
+        bust
+    });
+
     game.bankroll += payout;
     game.bet = 0;
-    game.moneyUsed = false;
     clearScout();
     game.hands += 1;
     game.best = Math.max(game.best, game.bankroll);
@@ -803,7 +874,7 @@ async function finish(outcome, message, { bust = false } = {}) {
     else if (outcome === 'lose') flyMoney(`−${money(wager)}`, true);
 
     const splash = outcome === 'win' ? 'win' : bust ? 'bust' : outcome === 'push' ? 'tie' : 'lose';
-    showSplash(splash, detail);
+    showSplash(splash, detail, insight, challengeWon);
 
     if (outcome === 'win') {
         confetti(playerTotal === 21 ? 160 : 90);
@@ -825,7 +896,7 @@ async function finish(outcome, message, { bust = false } = {}) {
         } else {
             setStatus(game.streak >= HOT_STREAK_AT
                 ? `${game.streak} in a row — the hot streak bonus is active.`
-                : 'Place your bet for the next hand.');
+                : 'Place your bet — or tap Again.');
         }
     }, 2100);
 }
@@ -854,13 +925,15 @@ function flyMoney(text, negative = false) {
     setTimeout(() => node.remove(), 1200);
 }
 
-function showSplash(kind, detail) {
+function showSplash(kind, detail, insight = '', challengeWon = false) {
     const src = { win: 'Win.png', lose: 'Lose.png', tie: 'Tie.png', bust: 'Bust.png' }[kind];
     const alt = { win: 'You win', lose: 'You lose', tie: 'Push', bust: 'You bust' }[kind];
     el.resultImage.src = `asset/${src}`;
     el.resultImage.alt = alt;
     el.resultPayout.textContent = detail || '';
     el.resultPayout.classList.toggle('negative', kind === 'lose' || kind === 'bust');
+    el.resultInsight.textContent = insight;
+    el.resultInsight.classList.toggle('goal-cleared', challengeWon);
     el.overlay.setAttribute('aria-hidden', 'false');
     el.overlay.classList.remove('hidden');
     // restart the CSS animation
@@ -984,6 +1057,7 @@ el.maxBet.addEventListener('click', () => addToBet(game.bankroll));
 el.rebet.addEventListener('click', () => {
     clearBet();
     addToBet(game.lastBet);
+    startRound();
 });
 
 el.dealBtn.addEventListener('click', startRound);

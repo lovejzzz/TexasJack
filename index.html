@@ -93,19 +93,42 @@
                 <div class="bet-meta">
                     <button class="mini-btn" id="clearBet">Clear</button>
                     <button class="mini-btn" id="maxBet">Max</button>
-                    <button class="mini-btn" id="rebet">Re-bet</button>
+                    <button class="mini-btn again" id="rebet" aria-label="Re-bet and deal">Again</button>
                 </div>
             </div>
 
             <div class="play-money" id="playMoney" hidden>
-                <button class="money-btn raise" id="raiseBtn" disabled>
-                    <span class="money-label">Raise</span>
-                    <b id="raiseAmt">—</b><kbd>R</kbd>
-                </button>
-                <button class="money-btn scout" id="scoutBtn" disabled>
-                    <span class="money-label">Scout the shoe</span>
-                    <b id="scoutAmt">—</b><kbd>P</kbd>
-                </button>
+                <div class="table-goal" id="challengeBox">
+                    <span class="challenge-label">Table goal</span>
+                    <b id="challengeText">—</b>
+                    <em id="challengeReward"></em>
+                </div>
+                <div class="money-choice">
+                    <div class="money-choice-head">
+                        <span>One money move</span>
+                        <small>Choose leverage or information</small>
+                    </div>
+                    <div class="money-choice-grid">
+                        <button class="money-btn raise" id="raiseBtn" disabled>
+                            <span class="money-kicker">Back your read</span>
+                            <span class="money-main">
+                                <span class="money-label">Raise</span>
+                                <b id="raiseAmt">—</b>
+                            </span>
+                            <span class="money-detail" id="raiseDetail">More leverage now</span>
+                            <kbd>R</kbd>
+                        </button>
+                        <button class="money-btn scout" id="scoutBtn" disabled>
+                            <span class="money-kicker">Buy information</span>
+                            <span class="money-main">
+                                <span class="money-label">Scout</span>
+                                <b id="scoutAmt">—</b>
+                            </span>
+                            <span class="money-detail" id="scoutDetail">Reveal the next card</span>
+                            <kbd>P</kbd>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -124,6 +147,7 @@
 <div id="resultOverlay" class="overlay hidden" role="status" aria-live="assertive" aria-atomic="true" aria-hidden="true">
     <img id="resultImage" src="" alt="">
     <div id="resultPayout" class="result-payout"></div>
+    <div id="resultInsight" class="result-insight"></div>
 </div>
 
 <!-- Rules ----------------------------------------------------------------- -->
@@ -161,6 +185,8 @@
             <li><strong>When you stand</strong>, the dealer draws privately until they reach 17 or bust.</li>
             <li><strong>One money move per hand — raise or scout, never both.</strong>
                 Back the read you already have, or pay for the card you can't see. Not both.</li>
+            <li><strong>One table goal per hand.</strong> Clear the optional tactical objective for
+                a small bonus. It rewards different lines without punishing the hand you want to play.</li>
             <li><strong>Raise</strong> adds up to half your ante, and the cap shrinks with every
                 card you take. Commit early against a wide range for the most leverage, or wait
                 for a sharper read and bet less on it.</li>
@@ -181,6 +207,7 @@
             <li><span>Win on exactly 21</span><b>3 : 2</b></li>
             <li><span>Push</span><b>bet returned</b></li>
             <li><span>Hot streak (3+ wins)</span><b>+25% bonus</b></li>
+            <li><span>Table goal</span><b>+10% of ante</b></li>
             <li><span>Scout the shoe</span><b>costs a third of the ante</b></li>
         </ul>
         <h3>This session</h3>
@@ -207,6 +234,7 @@
 
 <script src="cards.js"></script>
 <script src="audio.js"></script>
+<script src="rules.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

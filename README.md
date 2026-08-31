@@ -66,6 +66,10 @@ hand is live you have two ways to back your read:
 The raise cap decaying is the point: commit early against a wide range for the
 most leverage, or wait for a sharper read and bet less on it.
 
+The live decision panel makes that tradeoff explicit: Raise shows the resulting
+total wager and whether its window has narrowed, while Scout stays visibly
+secondary as the information play.
+
 Scout is deliberately expensive, because it's the one thing the table can't
 tell you. The board already pins the dealer to a range — the next card is pure
 unknown. Measured, knowing it is worth about **19 points of edge**, so a third
@@ -76,6 +80,17 @@ They're mutually exclusive — one money move per hand. Together they're broken:
 buying information cheaply and *then* betting on the resulting near-certainty
 measured at +5.5% to the player.
 
+## Table goals and replay loop
+
+Each hand gets one optional **table goal**, such as raising before the first
+draw, breaking the dealer with a shared card, or finishing on exactly 21.
+Clearing it adds **10% of the ante** (with a $5 floor). Goals rotate by mode and
+reward different tactics without making them mandatory.
+
+At settlement, a short decision note explains the line that shaped the hand.
+The **Again** button then repeats the previous ante and deals immediately, so a
+new attempt is one deliberate click away.
+
 ## Payouts
 
 | Result | Pays |
@@ -84,6 +99,7 @@ measured at +5.5% to the player.
 | Win on exactly 21 | 3 : 2 |
 | Push | Bet returned |
 | Hot streak (3+ wins running) | +25% bonus on the win |
+| Table goal | +10% of ante ($5 minimum) |
 
 Bust over 21 and you lose, even if the same community card breaks the dealer
 too — you went over first. Pushes happen when both hands finish level.
@@ -104,7 +120,7 @@ or serve the folder:
 npx http-server .
 ```
 
-Run the zero-dependency card and shoe tests with:
+Run the zero-dependency card, shoe, table-goal, and decision-feedback tests with:
 
 ```bash
 npm test
@@ -118,6 +134,7 @@ npm test
 | `styles.css` | Felt, cards, chips, animations, responsive layout |
 | `cards.js` | The deck, and every card face drawn as inline SVG |
 | `audio.js` | All sound effects, synthesised with the Web Audio API |
+| `rules.js` | Pure table-goal rotation, completion, and decision feedback rules |
 | `game.js` | Game state machine, dealing, betting, settlement |
 
 Nothing is fetched at runtime. Card faces are generated as vectors rather than

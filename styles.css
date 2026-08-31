@@ -450,8 +450,7 @@ button { font-family: inherit; }
     flex-wrap: wrap;
 }
 
-.bet-controls,
-.play-money {
+.bet-controls {
     display: flex;
     align-items: center;
     gap: clamp(8px, 1.4vw, 16px);
@@ -461,12 +460,96 @@ button { font-family: inherit; }
 .bet-controls[hidden], .play-money[hidden] { display: none; }
 
 /* Money actions available while a hand is live. */
-.money-btn {
-    display: flex;
+.play-money {
+    display: grid;
+    grid-template-columns: minmax(190px, .72fr) minmax(0, 2.5fr);
+    align-items: stretch;
+    gap: clamp(9px, 1.25vw, 16px);
+    width: min(980px, 100%);
+}
+
+.table-goal {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto 1fr;
     align-items: center;
-    gap: 8px;
-    padding: 10px clamp(12px, 1.6vw, 20px);
-    border-radius: 12px;
+    gap: 3px 10px;
+    min-width: 0;
+    padding: 12px 15px;
+    border-radius: 14px;
+    color: var(--ink);
+    background: linear-gradient(145deg, rgba(242, 199, 106, .14), rgba(255, 255, 255, .035));
+    border: 1px solid rgba(242, 199, 106, .28);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+.challenge-label {
+    grid-column: 1 / -1;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--gold);
+}
+.table-goal b {
+    min-width: 0;
+    font-size: clamp(11px, 1.45vh, 13px);
+    line-height: 1.35;
+}
+.table-goal em {
+    font-family: var(--font-num);
+    font-size: 13px;
+    font-weight: 800;
+    font-style: normal;
+    color: var(--gold-hot);
+    white-space: nowrap;
+}
+.table-goal.cleared {
+    border-color: rgba(70, 224, 139, .65);
+    background: linear-gradient(145deg, rgba(70, 224, 139, .2), rgba(242, 199, 106, .06));
+}
+
+.money-choice {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 5px;
+    min-width: 0;
+}
+.money-choice-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 3px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .17em;
+    text-transform: uppercase;
+    color: rgba(246, 241, 230, .72);
+}
+.money-choice-head small {
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: .06em;
+    color: var(--ink-dim);
+}
+.money-choice-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, .8fr);
+    gap: clamp(8px, 1vw, 12px);
+}
+
+.money-btn {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto 1fr auto;
+    align-items: center;
+    gap: 1px 10px;
+    min-width: 0;
+    min-height: 82px;
+    padding: 9px 38px 9px clamp(13px, 1.6vw, 22px);
+    text-align: left;
+    border-radius: 14px;
     cursor: pointer;
     font-size: clamp(11px, 1.5vh, 13px);
     font-weight: 700;
@@ -475,7 +558,33 @@ button { font-family: inherit; }
     color: var(--ink);
     background: linear-gradient(180deg, rgba(255, 255, 255, .10), rgba(255, 255, 255, .03));
     border: 1px solid rgba(255, 255, 255, .16);
-    transition: all .18s;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 7px 20px rgba(0, 0, 0, .2);
+    transition: transform .18s, background .18s, border-color .18s, box-shadow .18s, opacity .18s;
+}
+.money-kicker {
+    grid-column: 1 / -1;
+    font-size: 8px;
+    letter-spacing: .16em;
+    color: var(--ink-dim);
+}
+.money-main {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    min-width: 0;
+}
+.money-label { font-size: 1.08em; }
+.money-detail {
+    grid-column: 1 / -1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: .035em;
+    text-transform: none;
+    color: rgba(246, 241, 230, .68);
 }
 .money-btn b {
     font-family: var(--font-num);
@@ -483,10 +592,30 @@ button { font-family: inherit; }
     letter-spacing: 0;
     color: var(--gold);
 }
-.money-btn kbd { opacity: .45; font-size: .85em; }
-.money-btn:hover:not(:disabled) { transform: translateY(-2px); background: rgba(255, 255, 255, .16); }
+.money-btn kbd {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: .45;
+    font-size: .85em;
+}
+.money-btn:hover:not(:disabled) {
+    transform: translateY(-3px);
+    background: rgba(255, 255, 255, .16);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 11px 26px rgba(0, 0, 0, .28);
+}
 .money-btn:disabled { opacity: .38; cursor: not-allowed; }
-.money-btn.raise:not(:disabled) { border-color: rgba(242, 199, 106, .55); }
+.money-btn.raise:not(:disabled) {
+    border-color: rgba(242, 199, 106, .72);
+    background: linear-gradient(145deg, rgba(242, 199, 106, .22), rgba(255, 255, 255, .055));
+}
+.money-btn.raise.attention { animation: raiseAttention .72s cubic-bezier(.2, .9, .3, 1) 1; }
+@keyframes raiseAttention {
+    0% { box-shadow: 0 0 0 0 rgba(242, 199, 106, .55); }
+    65% { box-shadow: 0 0 0 9px rgba(242, 199, 106, 0), 0 12px 28px rgba(0, 0, 0, .3); }
+    100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 7px 20px rgba(0, 0, 0, .2); }
+}
 .money-btn.scout:not(:disabled) { border-color: rgba(139, 91, 214, .6); }
 .money-btn.scout b { color: #c9b1ff; }
 
@@ -575,6 +704,11 @@ button { font-family: inherit; }
 }
 .mini-btn:hover:not(:disabled) { color: var(--ink); background: rgba(255, 255, 255, .14); }
 .mini-btn:disabled { opacity: .35; cursor: not-allowed; }
+.mini-btn.again:not(:disabled) {
+    color: #102017;
+    background: var(--gold);
+    border-color: var(--gold-hot);
+}
 
 .actions {
     display: flex;
@@ -703,6 +837,23 @@ button { font-family: inherit; }
     animation: fadeIn .4s .35s both;
 }
 .result-payout.negative { color: #ff8f8f; text-shadow: 0 0 26px rgba(255, 90, 90, .45); }
+.result-insight {
+    max-width: min(620px, 82vw);
+    padding: 8px 14px;
+    border-radius: 999px;
+    text-align: center;
+    font-size: clamp(11px, 1.8vh, 15px);
+    line-height: 1.4;
+    color: rgba(246, 241, 230, .86);
+    background: rgba(4, 18, 13, .72);
+    border: 1px solid rgba(255, 255, 255, .12);
+    animation: fadeIn .4s .52s both;
+}
+.result-insight.goal-cleared {
+    color: var(--gold-hot);
+    border-color: rgba(242, 199, 106, .5);
+    box-shadow: 0 0 22px rgba(242, 199, 106, .15);
+}
 
 /* ---- Modal --------------------------------------------------------------- */
 
@@ -887,12 +1038,32 @@ kbd {
     .btn kbd { display: none; }
     .tally { margin-left: 3px; min-width: 1.2em; padding: 0 3px; }
     .shoe { display: none; }
+
+    .play-money { grid-template-columns: 1fr; gap: 6px; }
+    .table-goal {
+        grid-template-columns: auto 1fr auto;
+        grid-template-rows: 1fr;
+        gap: 8px;
+        padding: 7px 10px;
+    }
+    .challenge-label { grid-column: auto; font-size: 8px; white-space: nowrap; }
+    .table-goal b { font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .table-goal em { font-size: 11px; }
+    .money-choice-head { display: none; }
+    .money-btn { min-height: 62px; padding-top: 7px; padding-bottom: 7px; }
+    .money-kicker { font-size: 7px; }
+    .money-detail { font-size: 8px; }
 }
 
 /* Five action buttons on a small phone need every pixel. */
 @media (max-width: 400px) {
     .actions { gap: 4px; }
     .btn { font-size: 10px; padding: 12px 2px; }
+    .money-choice-grid { grid-template-columns: 1.35fr .85fr; gap: 5px; }
+    .money-btn { min-height: 58px; padding-left: 10px; padding-right: 26px; }
+    .money-btn kbd { display: none; }
+    .money-main { gap: 5px; }
+    .money-detail { max-width: 100%; }
 }
 
 @media (orientation: landscape) and (max-height: 560px) {
@@ -914,6 +1085,20 @@ kbd {
     .scout-slot { display: none !important; }
     .lane-head { gap: 6px; }
     .status { min-height: 1.2em; font-size: 12px; }
+    .dock { gap: 4px; padding-top: 3px; }
+    .play-money { grid-template-columns: minmax(150px, .65fr) minmax(0, 2.4fr); gap: 6px; }
+    .table-goal { padding: 5px 8px; }
+    .challenge-label { display: none; }
+    .table-goal b { font-size: 9px; }
+    .money-choice { display: block; }
+    .money-choice-head { display: none; }
+    .money-choice-grid { grid-template-columns: 1.5fr .85fr; gap: 6px; }
+    .money-btn { min-height: 44px; padding: 5px 28px 5px 10px; }
+    .money-kicker,
+    .money-detail { display: none; }
+    .money-btn kbd { right: 8px; }
+    .money-main { gap: 5px; }
+    .actions .btn { padding-top: 8px; padding-bottom: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
