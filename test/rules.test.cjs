@@ -4,7 +4,7 @@ const rules = require('../rules.js');
 
 test('table goals rotate by mode and pay ten percent with a five-dollar floor', () => {
     assert.deepEqual(rules.tableGoal('classic', 0, 100), {
-        id: 'early_raise', text: 'Raise before drawing, then win', reward: 10
+        id: 'early_raise', text: 'Press before drawing, then win', reward: 10
     });
     assert.equal(rules.tableGoal('classic', 1, 25).id, 'board_break');
     assert.equal(rules.tableGoal('classic', 2, 25).id, 'exact21');
@@ -18,7 +18,7 @@ test('goals only clear on a winning hand that satisfies their condition', () => 
         raisedAtDraw: null, boardBrokeDealer: false, privateLeft: 0
     };
     assert.equal(rules.tableGoalComplete({ id: 'early_raise' }, {
-        ...base, moneyAction: 'raise', raisedAtDraw: 0
+        ...base, raisedAtDraw: 0
     }), true);
     assert.equal(rules.tableGoalComplete({ id: 'early_raise' }, {
         ...base, moneyAction: 'raise', raisedAtDraw: 1
@@ -37,6 +37,48 @@ test('goals only clear on a winning hand that satisfies their condition', () => 
     }), false);
 });
 
+test('press windows reopen after a card while leverage and total exposure stay bounded', () => {
+    assert.deepEqual(rules.pressOffer({
+        ante: 100, bankroll: 1000, drawsTaken: 0, pressedTotal: 0,
+        pressedAtDraw: null, scoutLocked: false
+    }), {
+        amount: 20, limit: 50, remaining: 50, rate: 0.20,
+        usedThisWindow: false, locked: false, maxed: false
+    });
+
+    assert.equal(rules.pressOffer({
+        ante: 100, bankroll: 1000, drawsTaken: 0, pressedTotal: 20,
+        pressedAtDraw: 0, scoutLocked: false
+    }).amount, 0);
+    assert.equal(rules.pressOffer({
+        ante: 100, bankroll: 1000, drawsTaken: 1, pressedTotal: 20,
+        pressedAtDraw: 0, scoutLocked: false
+    }).amount, 10);
+    assert.equal(rules.pressOffer({
+        ante: 100, bankroll: 1000, drawsTaken: 3, pressedTotal: 40,
+        pressedAtDraw: 2, scoutLocked: false
+    }).amount, 5);
+    assert.equal(rules.pressOffer({
+        ante: 100, bankroll: 1000, drawsTaken: 4, pressedTotal: 50,
+        pressedAtDraw: 3, scoutLocked: false
+    }).maxed, true);
+});
+
+test('a known scouted card freezes only its current press window', () => {
+    const locked = rules.pressOffer({
+        ante: 100, bankroll: 1000, drawsTaken: 1, pressedTotal: 20,
+        pressedAtDraw: 0, scoutLocked: true
+    });
+    assert.equal(locked.amount, 0);
+    assert.equal(locked.locked, true);
+
+    const reopened = rules.pressOffer({
+        ante: 100, bankroll: 1000, drawsTaken: 2, pressedTotal: 20,
+        pressedAtDraw: 0, scoutLocked: false
+    });
+    assert.equal(reopened.amount, 10);
+});
+
 test('round insight explains the decision that shaped the hand', () => {
     assert.match(rules.decisionInsight({
         outcome: 'win', challengeWon: true, challengeText: 'Finish on exactly 21'
@@ -46,7 +88,7 @@ test('round insight explains the decision that shaped the hand', () => {
     }), /shared card broke/);
     assert.match(rules.decisionInsight({
         outcome: 'win', challengeWon: false, boardBrokeDealer: false,
-        moneyAction: 'raise', raisedAtDraw: 0
+        pressTotal: 20, scoutUsed: false, raisedAtDraw: 0
     }), /best price/);
     assert.match(rules.decisionInsight({
         outcome: 'lose', challengeWon: false, boardBrokeDealer: false,

@@ -4,7 +4,7 @@
    ========================================================================== */
 
 const { Deck, cardFaceSVG, cardBackSVG, handTotal } = window.TJCards;
-const { tableGoal, tableGoalComplete, decisionInsight } = window.TJRules;
+const { tableGoal, tableGoalComplete, pressOffer, decisionInsight } = window.TJRules;
 
 /* ---- DOM ----------------------------------------------------------------- */
 
@@ -90,7 +90,6 @@ const PRIVATE_DRAWS = 2;          // "Your Call" mode: cards you may keep to you
    works out to break-even at roughly a third of the ante, so buying it every
    hand loses and buying it in the right spots is a small, real gain. */
 const SCOUT_RATE = 0.30;
-const RAISE_MAX = 0.5;            // most you may add to the wager, as a share of the ante
 
 /* Every rank a face-down card could be, as a hand value. */
 const UNKNOWN_RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'A'];
@@ -124,9 +123,11 @@ const game = {
     streak: persisted.streak || 0,
     ante: 0,
     scouted: null,
-    moneyUsed: false,
+    scoutUsed: false,
     moneyAction: null,
     raisedAtDraw: null,
+    pressedAtDraw: null,
+    pressTotal: 0,
     drawsTaken: 0,
     boardBrokeDealer: false,
     challenge: null,
@@ -427,25 +428,29 @@ function syncControls() {
     el.betControls.hidden = inHand;
     el.playMoney.hidden = !inHand;
 
-    const cap = raiseCap();
-    el.raiseBtn.disabled = !playing || cap <= 0;
-    el.raiseAmt.textContent = cap > 0 ? '+' + money(cap) : '—';
-    el.raiseBtn.classList.toggle('attention', playing && cap > 0 && game.drawsTaken === 0);
-    if (game.moneyAction === 'raise') {
-        el.raiseDetail.textContent = `Committed at ${money(game.bet)}`;
-    } else if (game.moneyUsed) {
-        el.raiseDetail.textContent = 'One money move already used';
-    } else if (cap > 0) {
-        el.raiseDetail.textContent = `Total wager ${money(game.bet + cap)} · ${game.drawsTaken ? 'window narrowed' : 'best price now'}`;
+    const offer = currentPressOffer();
+    el.raiseBtn.disabled = !playing || offer.amount <= 0;
+    el.raiseAmt.textContent = offer.amount > 0 ? '+' + money(offer.amount) : '—';
+    el.raiseBtn.classList.toggle('attention', playing && offer.amount > 0);
+    el.raiseBtn.classList.toggle('committed', game.pressTotal > 0);
+    if (offer.locked) {
+        el.raiseDetail.textContent = 'Known card locked · draw it to reopen';
+    } else if (offer.usedThisWindow) {
+        el.raiseDetail.textContent = `Read backed · ${money(offer.remaining)} leverage remains`;
+    } else if (offer.maxed) {
+        el.raiseDetail.textContent = `Fully committed · +${money(game.pressTotal)} this hand`;
+    } else if (offer.amount > 0) {
+        const timing = game.drawsTaken === 0 ? 'opening price' : game.drawsTaken < 3 ? 'window narrowed' : 'final price';
+        el.raiseDetail.textContent = `${money(offer.remaining)} leverage left · ${timing}`;
     } else {
-        el.raiseDetail.textContent = 'No raise available';
+        el.raiseDetail.textContent = game.bankroll <= 0 ? 'No bankroll available' : 'Next card reopens the window';
     }
     const cost = scoutCost();
-    el.scoutBtn.disabled = !playing || game.moneyUsed || cost > game.bankroll;
-    el.scoutAmt.textContent = game.moneyUsed ? '—' : money(cost);
-    el.scoutDetail.textContent = game.moneyAction === 'scout'
-        ? 'Information bought this hand'
-        : game.moneyUsed ? 'One money move already used' : 'Reveal the next card';
+    el.scoutBtn.disabled = !playing || game.scoutUsed || cost > game.bankroll;
+    el.scoutAmt.textContent = game.scoutUsed ? '—' : money(cost);
+    el.scoutDetail.textContent = game.scoutUsed
+        ? game.scouted ? 'Known card freezes this press window' : 'Information already bought this hand'
+        : 'Reveal next card · freezes this window';
 
     if (game.challenge) {
         el.challengeText.textContent = game.challenge.text;
@@ -508,9 +513,11 @@ async function startRound() {
     game.dealerBoard = [];
     game.ante = game.bet;
     game.scouted = null;
-    game.moneyUsed = false;
+    game.scoutUsed = false;
     game.moneyAction = null;
     game.raisedAtDraw = null;
+    game.pressedAtDraw = null;
+    game.pressTotal = 0;
     game.drawsTaken = 0;
     game.boardBrokeDealer = false;
     game.challengeCompleted = false;
@@ -544,7 +551,7 @@ async function startRound() {
     } else if (routed()) {
         setStatus('Your move — card to the <b>Board</b> or to your <b>Hand</b>.');
     } else {
-        setStatus('Your move — <b>Hit</b>, <b>Stand</b>, or <b>Raise</b>.');
+        setStatus('Your move — <b>Hit</b>, <b>Stand</b>, or <b>Press</b>.');
     }
 }
 
@@ -573,7 +580,7 @@ async function layOnBoard(card) {
 async function playerHit() {
     if (game.phase !== PHASE.PLAYER) return;
 
-    const capBefore = raiseCap();
+    const pressBefore = currentPressOffer().amount;
     game.phase = PHASE.RESOLVING;
     game.drawsTaken += 1;
     syncControls();
@@ -598,7 +605,7 @@ async function playerHit() {
         await dealTo(game.player, el.playerCards, card);
     }
 
-    return afterDraw({ capBefore });
+    return afterDraw({ pressBefore });
 }
 
 /**
@@ -610,7 +617,7 @@ async function playerDraw(target, { free = false } = {}) {
     if (game.phase !== PHASE.PLAYER) return;
     if (target === 'hand' && !free && game.privateLeft <= 0) return;
 
-    const capBefore = raiseCap();
+    const pressBefore = currentPressOffer().amount;
     game.phase = PHASE.RESOLVING;
     game.drawsTaken += 1;
     if (target === 'hand' && !free) game.privateLeft -= 1;
@@ -631,11 +638,11 @@ async function playerDraw(target, { free = false } = {}) {
         await dealTo(game.player, el.playerCards, card);
     }
 
-    return afterDraw({ capBefore });
+    return afterDraw({ pressBefore });
 }
 
 /** Shared settlement for both variants once a card has landed. */
-async function afterDraw({ capBefore = 0 } = {}) {
+async function afterDraw({ pressBefore = 0 } = {}) {
     await sleep(260);
     highlightLane(null);
 
@@ -662,11 +669,12 @@ async function afterDraw({ capBefore = 0 } = {}) {
     game.phase = PHASE.PLAYER;
     highlightLane('player');
     syncControls();
-    const capAfter = raiseCap();
+    const pressAfter = currentPressOffer().amount;
     if (p === 21) {
         setStatus('Twenty-one! Stand and lock it in?');
-    } else if (capBefore > capAfter && capAfter > 0 && !game.moneyUsed) {
-        setStatus(`Raise window narrowed: <b>${money(capBefore)} → ${money(capAfter)}</b>. Your move.`);
+    } else if (pressAfter > 0) {
+        const shift = pressBefore > pressAfter ? `${money(pressBefore)} → ${money(pressAfter)}` : `+${money(pressAfter)}`;
+        setStatus(`New press window: <b>${shift}</b>. Back the read or play on.`);
     } else {
         setStatus('Your move.');
     }
@@ -674,32 +682,36 @@ async function afterDraw({ capBefore = 0 } = {}) {
 
 /* ---- Money actions ------------------------------------------------------- */
 
-/**
- * How much you may still add to the wager. It shrinks with every card you take,
- * so leverage and information pull against each other: commit early on a wide
- * read for the most money, or wait for a sharper read and bet less on it.
- */
-function raiseCap() {
-    if (game.moneyUsed || game.phase !== PHASE.PLAYER) return 0;
-    // Half the ante at most. At a full ante, a player who waits for a provably
-    // winning spot converts the read into a +3.7% edge — the raise has to be
-    // worth taking without being big enough to break the game.
-    const scale = Math.max(0.25, 1 - 0.25 * game.drawsTaken);
-    return Math.min(game.bankroll, Math.round(game.ante * RAISE_MAX * scale));
+/** Price the one conviction press available at the current card state. */
+function currentPressOffer() {
+    return pressOffer({
+        ante: game.ante,
+        bankroll: game.bankroll,
+        drawsTaken: game.drawsTaken,
+        pressedTotal: game.pressTotal,
+        pressedAtDraw: game.pressedAtDraw,
+        scoutLocked: !!game.scouted
+    });
 }
 
 function playerRaise() {
-    const amount = raiseCap();
+    if (game.phase !== PHASE.PLAYER) return;
+    const offer = currentPressOffer();
+    const amount = offer.amount;
     if (amount <= 0) return;
+    const bankBefore = game.bankroll;
+    const betBefore = game.bet;
     game.bankroll -= amount;
     game.bet += amount;
-    game.moneyUsed = true;
+    game.pressTotal += amount;
+    game.pressedAtDraw = game.drawsTaken;
     game.moneyAction = 'raise';
-    game.raisedAtDraw = game.drawsTaken;
+    if (game.raisedAtDraw === null) game.raisedAtDraw = game.drawsTaken;
     SFX.chip();
-    updateMoney(true);
-    flyMoney(`−${money(amount)}`, true);
-    setStatus(`Read backed — <b>${money(game.bet)}</b> is now in play.`);
+    updateMoney();
+    animateMoneyValue(el.bankroll, bankBefore, game.bankroll, 280);
+    animateBetTransfer(el.raiseBtn, betBefore, game.bet);
+    setStatus(`Read backed — <b>${money(game.bet)}</b> in play. Draw a card to reopen Press.`);
     syncControls();
 }
 
@@ -714,20 +726,22 @@ function scoutCost() {
  * implies what comes next, so this is information you cannot otherwise get.
  */
 function playerScout() {
-    if (game.phase !== PHASE.PLAYER || game.moneyUsed) return;
+    if (game.phase !== PHASE.PLAYER || game.scoutUsed) return;
     const cost = scoutCost();
     if (cost > game.bankroll) return;
 
+    const bankBefore = game.bankroll;
     game.bankroll -= cost;
-    game.moneyUsed = true;
-    game.moneyAction = 'scout';
+    game.scoutUsed = true;
+    if (!game.moneyAction) game.moneyAction = 'scout';
     game.scouted = game.deck.peek();
     SFX.chip();
     updateMoney();
-    flyMoney(`−${money(cost)}`, true);
+    animateMoneyValue(el.bankroll, bankBefore, game.bankroll, 280);
+    pulseReadout(el.bankroll.closest('.readout'), 'loss-drain');
     renderScout();
     syncControls();
-    setStatus(`Top of the shoe: <b>${cardName(game.scouted)}</b>.`);
+    setStatus(`Top of the shoe: <b>${cardName(game.scouted)}</b>. Press is frozen until this card is drawn.`);
 }
 
 function cardName(card) {
@@ -868,6 +882,8 @@ async function finish(outcome, message, { bust = false } = {}) {
         mode: game.mode,
         playerTotal,
         moneyAction: game.moneyAction,
+        pressTotal: game.pressTotal,
+        scoutUsed: game.scoutUsed,
         raisedAtDraw: game.raisedAtDraw,
         boardBrokeDealer: game.boardBrokeDealer,
         privateLeft: game.privateLeft

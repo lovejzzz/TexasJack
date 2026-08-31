@@ -3,7 +3,7 @@
     const goals = {
         early_raise: {
             id: 'early_raise',
-            text: 'Raise before drawing, then win'
+            text: 'Press before drawing, then win'
         },
         board_break: {
             id: 'board_break',
@@ -36,7 +36,7 @@
     function tableGoalComplete(goal, state) {
         if (!goal || state.outcome !== 'win') return false;
         if (goal.id === 'early_raise') {
-            return state.moneyAction === 'raise' && state.raisedAtDraw === 0;
+            return state.raisedAtDraw === 0;
         }
         if (goal.id === 'board_break') return !!state.boardBrokeDealer;
         if (goal.id === 'private_reserve') {
@@ -46,17 +46,53 @@
         return false;
     }
 
+    /**
+     * Price the next conviction press. A read may be backed once at each new
+     * card state, up to half the original ante across the whole hand. Early
+     * windows carry more leverage; unused windows expire when another card is
+     * drawn. A scouted card freezes the current window until it is consumed.
+     */
+    function pressOffer({ ante, bankroll, drawsTaken, pressedTotal, pressedAtDraw, scoutLocked }) {
+        const base = Math.max(0, Number(ante) || 0);
+        const cash = Math.max(0, Number(bankroll) || 0);
+        const draws = Math.max(0, Number(drawsTaken) || 0);
+        const committed = Math.max(0, Number(pressedTotal) || 0);
+        const limit = Math.max(0, Math.round(base * 0.50));
+        const remaining = Math.max(0, limit - committed);
+        const rate = draws === 0 ? 0.20 : draws <= 2 ? 0.10 : 0.05;
+        const stageAmount = base > 0 ? Math.max(1, Math.round(base * rate)) : 0;
+        const usedThisWindow = pressedAtDraw !== null
+            && pressedAtDraw !== undefined
+            && Number(pressedAtDraw) === draws;
+        const amount = scoutLocked || usedThisWindow
+            ? 0
+            : Math.min(stageAmount, remaining, cash);
+
+        return {
+            amount,
+            limit,
+            remaining,
+            rate,
+            usedThisWindow,
+            locked: !!scoutLocked,
+            maxed: remaining === 0
+        };
+    }
+
     function decisionInsight(state) {
         if (state.challengeWon) return `Table goal cleared — ${state.challengeText}.`;
         if (state.outcome === 'win' && state.boardBrokeDealer) {
             return 'Board read paid off — your shared card broke the dealer.';
         }
-        if (state.outcome === 'win' && state.moneyAction === 'raise') {
+        if (state.outcome === 'win' && state.pressTotal > 0 && state.scoutUsed) {
+            return 'You bought the read, then backed the next open press window.';
+        }
+        if (state.outcome === 'win' && state.pressTotal > 0) {
             return state.raisedAtDraw === 0
                 ? 'Strong commitment — you backed the read at the best price.'
-                : 'You waited for a sharper read, but the raise window had narrowed.';
+                : 'You waited for a sharper read, but the press price had narrowed.';
         }
-        if (state.moneyAction === 'scout') {
+        if (state.scoutUsed) {
             return 'Scout bought certainty — use it when it changes your route.';
         }
         if (state.outcome === 'win' && state.mode === 'routed' && state.privateLeft > 0) {
@@ -76,7 +112,7 @@
             : 'The line missed — use the dealer range to sharpen the next decision.';
     }
 
-    const api = { tableGoal, tableGoalComplete, decisionInsight };
+    const api = { tableGoal, tableGoalComplete, pressOffer, decisionInsight };
     if (typeof window !== 'undefined') window.TJRules = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 }());

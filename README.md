@@ -54,21 +54,21 @@ standing dealer over the edge.
 ## Money on the table
 
 Stand, and the dealer draws privately until they reach 17 or bust. While the
-hand is live you have two ways to back your read:
-
-**One money move per hand — raise or peek, never both.**
+hand is live, every new card state opens one chance to back the read:
 
 | | What it does | Cost |
 | --- | --- | --- |
-| **Raise** | Adds to your wager | Up to half the ante, shrinking 25% per card you've taken |
+| **Press** | Adds to your live wager once per new card state | Up to half the ante across the hand |
 | **Scout** | Turns the top card of the shoe face up | A third of the ante |
 
-The raise cap decaying is the point: commit early against a wide range for the
-most leverage, or wait for a sharper read and bet less on it.
+Press starts at 20% of the ante, narrows to 10% after the first draw, and falls
+to 5% in late windows. An unused window expires when another card is drawn.
+That is the point: commit early against a wide range for more leverage, or wait
+for a sharper read and accept a smaller bet. Total added exposure is capped at
+half the original ante.
 
-The live decision panel makes that tradeoff explicit: Raise shows the resulting
-total wager and whether its window has narrowed, while Scout stays visibly
-secondary as the information play.
+The live decision panel keeps Press visible through the hand, shows the current
+price and remaining leverage, and reopens it after each new card.
 
 Scout is deliberately expensive, because it's the one thing the table can't
 tell you. The board already pins the dealer to a range — the next card is pure
@@ -76,9 +76,11 @@ unknown. Measured, knowing it is worth about **19 points of edge**, so a third
 of your ante is roughly what it's worth. Buy it on 14 against a hand that might
 break you and it pays; buy it every hand and you lose 16 points.
 
-They're mutually exclusive — one money move per hand. Together they're broken:
-buying information cheaply and *then* betting on the resulting near-certainty
-measured at +5.5% to the player.
+Scout can be bought once per hand. While its known card is waiting on top of the
+shoe, the current Press window is frozen; once that card is drawn and the paid
+certainty is consumed, the next Press window opens normally. This keeps the
+information useful without letting the player see the answer and then bet it at
+the old price.
 
 ## Table goals and replay loop
 
@@ -112,7 +114,7 @@ too — you went over first. Pushes happen when both hands finish level.
 
 ## Controls
 
-`↵` deal · `S` stand · `R` raise · `P` scout · `1`–`4` place chips ·
+`↵` deal · `S` stand · `R` press · `P` scout · `1`–`4` place chips ·
 `M` mute · `?` rules · `Esc` dismiss
 
 `H` hit (Dealer's Call) · `B` board / `H` hand (Your Call)
