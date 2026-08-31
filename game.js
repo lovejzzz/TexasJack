@@ -261,6 +261,7 @@ function clearTable() {
     el.dealerCards.innerHTML = '';
     el.sharedCards.innerHTML = '';
     el.playerCards.innerHTML = '';
+    Object.values(laneOf).forEach(lane => lane.classList.remove('winner', 'perfect-win'));
 }
 
 function revealDealer() {
@@ -371,6 +372,8 @@ function updateShoe() {
 function money(n) { return '$' + n.toLocaleString('en-US'); }
 
 function updateMoney(bump = false) {
+    // Any direct state render supersedes a counter animation already in flight.
+    [el.bankroll, el.pot].forEach(node => { node._moneyAnimation = (node._moneyAnimation || 0) + 1; });
     el.bankroll.textContent = money(game.bankroll);
     el.pot.textContent = money(game.bet);
     el.streak.textContent = game.streak;
@@ -463,14 +466,18 @@ function syncControls() {
 
 /* ---- Betting ------------------------------------------------------------- */
 
-function addToBet(amount) {
+function addToBet(amount, origin = null) {
     if (game.phase !== PHASE.BET) return;
+    const before = game.bet;
+    const bankBefore = game.bankroll;
     const wager = Math.min(amount, game.bankroll);
     if (wager <= 0) return;
     game.bankroll -= wager;
     game.bet += wager;
     SFX.chip();
     updateMoney();
+    animateMoneyValue(el.bankroll, bankBefore, game.bankroll, 280);
+    animateBetTransfer(origin, before, game.bet);
     syncControls();
     setStatus(`Wager: <b>${money(game.bet)}</b> — press Deal when you're ready.`);
 }
@@ -828,13 +835,17 @@ async function finish(outcome, message, { bust = false } = {}) {
 
     const wager = game.bet;
     const playerTotal = handTotal(game.player, game.shared).total;
+    const bankrollBefore = game.bankroll;
+    const previousBest = game.best;
     let payout = 0;
     let detail = '';
+    let perfect = false;
+    let hot = false;
 
     if (outcome === 'win') {
         const nextStreak = game.streak + 1;
-        const perfect = playerTotal === 21;
-        const hot = nextStreak >= HOT_STREAK_AT;
+        perfect = playerTotal === 21;
+        hot = nextStreak >= HOT_STREAK_AT;
         let profit = wager * (perfect ? PERFECT_MULTIPLIER : 1);
         if (hot) profit *= 1 + HOT_STREAK_BONUS;
         profit = Math.round(profit);
@@ -879,12 +890,32 @@ async function finish(outcome, message, { bust = false } = {}) {
     game.bet = 0;
     clearScout();
     game.hands += 1;
+    const newPeak = game.bankroll > previousBest;
     game.best = Math.max(game.best, game.bankroll);
     persist();
-    updateMoney(payout > 0);
+    updateMoney(false);
 
-    if (payout > wager) flyMoney(`+${money(payout - wager)}`);
-    else if (outcome === 'lose') flyMoney(`−${money(wager)}`, true);
+    if (outcome === 'win') {
+        laneOf.player.classList.add('winner');
+        if (perfect) laneOf.player.classList.add('perfect-win');
+        if (game.boardBrokeDealer) laneOf.shared.classList.add('winner');
+    }
+
+    if (payout > 0) {
+        animatePayoutTransfer({
+            bankrollBefore,
+            bankrollAfter: game.bankroll,
+            potBefore: wager,
+            payout,
+            outcome,
+            perfect,
+            hot,
+            challengeWon,
+            newPeak
+        });
+    } else {
+        animateLossDrain(wager);
+    }
 
     const splash = outcome === 'win' ? 'win' : bust ? 'bust' : outcome === 'push' ? 'tie' : 'lose';
     showSplash(splash, detail, insight, challengeWon);
@@ -926,6 +957,186 @@ function rebuy() {
 }
 
 /* ---- Flourishes ---------------------------------------------------------- */
+
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function centerOf(node) {
+    const rect = node.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+}
+
+/** Count a money readout to its new value without ever changing game state. */
+function animateMoneyValue(node, from, to, duration = 700) {
+    const ticket = (node._moneyAnimation || 0) + 1;
+    node._moneyAnimation = ticket;
+    if (reducedMotion() || from === to) {
+        node.textContent = money(to);
+        return;
+    }
+
+    const started = performance.now();
+    node.textContent = money(from);
+    const step = now => {
+        if (node._moneyAnimation !== ticket) return;
+        const t = Math.min(1, (now - started) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);
+        node.textContent = money(Math.round(from + (to - from) * eased));
+        if (t < 1) requestAnimationFrame(step);
+        else node.textContent = money(to);
+    };
+    requestAnimationFrame(step);
+}
+
+function pulseReadout(node, className = 'money-catch') {
+    node.classList.remove(className);
+    void node.offsetWidth;
+    node.classList.add(className);
+    setTimeout(() => node.classList.remove(className), 1200);
+}
+
+/** One physical token following an arced path between two UI readouts. */
+function transferToken(from, to, { delay = 0, duration = 620, color = '#e7bd62', index = 0, onArrive } = {}) {
+    if (reducedMotion()) {
+        if (onArrive) setTimeout(onArrive, 0);
+        return;
+    }
+
+    const node = document.createElement('span');
+    node.className = 'transfer-token';
+    node.setAttribute('aria-hidden', 'true');
+    node.style.left = `${from.x - 10}px`;
+    node.style.top = `${from.y - 10}px`;
+    node.style.setProperty('--token-color', color);
+    document.body.appendChild(node);
+
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const arc = 34 + (index % 3) * 11;
+    const drift = (index % 2 ? 1 : -1) * (4 + index % 4);
+    const animation = node.animate([
+        { transform: 'translate(0, 0) scale(.35) rotate(0deg)', opacity: 0 },
+        { transform: `translate(${drift}px, -8px) scale(1) rotate(80deg)`, opacity: 1, offset: .16 },
+        { transform: `translate(${dx * .52 + drift}px, ${dy * .46 - arc}px) scale(1.12) rotate(240deg)`, opacity: 1, offset: .58 },
+        { transform: `translate(${dx}px, ${dy}px) scale(.3) rotate(520deg)`, opacity: .15 }
+    ], { duration, delay, easing: 'cubic-bezier(.2,.72,.25,1)', fill: 'forwards' });
+
+    animation.onfinish = () => {
+        node.remove();
+        if (onArrive) onArrive();
+    };
+}
+
+function sparkBurst(node, color = '#ffe19a', count = 8) {
+    if (reducedMotion()) return;
+    const point = centerOf(node);
+    for (let i = 0; i < count; i += 1) {
+        const spark = document.createElement('i');
+        const angle = (Math.PI * 2 * i) / count;
+        const distance = 22 + (i % 3) * 7;
+        spark.className = 'micro-spark';
+        spark.setAttribute('aria-hidden', 'true');
+        spark.style.left = `${point.x}px`;
+        spark.style.top = `${point.y}px`;
+        spark.style.setProperty('--spark-x', `${Math.cos(angle) * distance}px`);
+        spark.style.setProperty('--spark-y', `${Math.sin(angle) * distance}px`);
+        spark.style.setProperty('--spark-color', color);
+        spark.style.animationDelay = `${i * 16}ms`;
+        document.body.appendChild(spark);
+        setTimeout(() => spark.remove(), 900);
+    }
+}
+
+function payoutLabel(node, text, peak = false, delay = 0) {
+    if (reducedMotion()) return;
+    const point = centerOf(node);
+    const tag = document.createElement('div');
+    tag.className = 'payout-arrival' + (peak ? ' peak' : '');
+    tag.textContent = peak ? `${text} · new peak` : text;
+    tag.setAttribute('aria-hidden', 'true');
+    tag.style.left = `${point.x}px`;
+    tag.style.top = `${point.y + 24}px`;
+    tag.style.animationDelay = `${delay}ms`;
+    document.body.appendChild(tag);
+    setTimeout(() => tag.remove(), delay + 1450);
+}
+
+function animateBetTransfer(origin, before, after) {
+    animateMoneyValue(el.pot, before, after, 360);
+    const target = el.pot.closest('.readout');
+    if (!origin || reducedMotion()) {
+        pulseReadout(target);
+        return;
+    }
+
+    const chipColor = getComputedStyle(origin).getPropertyValue('--chip').trim() || '#d6ae58';
+    transferToken(centerOf(origin), centerOf(target), {
+        duration: 470,
+        color: chipColor,
+        onArrive: () => {
+            pulseReadout(target);
+            sparkBurst(target, chipColor, 5);
+        }
+    });
+}
+
+function animatePayoutTransfer({ bankrollBefore, bankrollAfter, potBefore, payout, outcome, perfect, hot, challengeWon, newPeak }) {
+    const source = el.pot.closest('.readout');
+    const target = el.bankroll.closest('.readout');
+    animateMoneyValue(el.pot, potBefore, 0, 520);
+
+    if (reducedMotion()) {
+        el.bankroll.textContent = money(bankrollAfter);
+        return;
+    }
+
+    el.bankroll.textContent = money(bankrollBefore);
+    const count = outcome === 'push'
+        ? 4
+        : Math.min(12, 6 + (perfect ? 2 : 0) + (hot ? 2 : 0) + (challengeWon ? 1 : 0));
+    const color = outcome === 'push' ? '#d9d5c8' : perfect ? '#fff0a8' : '#e7bd62';
+    const lastDelay = (count - 1) * 62;
+
+    const arrivalAt = 700 + lastDelay;
+    animateMoneyValue(el.bankroll, bankrollBefore, bankrollAfter, arrivalAt);
+    for (let i = 0; i < count; i += 1) {
+        transferToken(centerOf(source), centerOf(target), {
+            delay: i * 62,
+            duration: 610 + (i % 3) * 45,
+            color,
+            index: i
+        });
+    }
+    payoutLabel(target, `Payout +${money(payout)}`, newPeak, arrivalAt);
+    setTimeout(() => {
+        pulseReadout(target, 'payout-catch');
+        sparkBurst(target, color, perfect ? 12 : 9);
+        if (newPeak) {
+            target.classList.add('new-peak');
+            setTimeout(() => target.classList.remove('new-peak'), 1700);
+        }
+        SFX.chip();
+    }, arrivalAt);
+
+    if (outcome === 'win') {
+        setTimeout(() => {
+            pulseReadout(el.streakBox, hot ? 'streak-hotter' : 'streak-earned');
+            if (hot) sparkBurst(el.streakBox, '#ff9b50', 9);
+        }, 420);
+    }
+}
+
+function animateLossDrain(potBefore) {
+    const source = el.pot.closest('.readout');
+    animateMoneyValue(el.pot, potBefore, 0, 620);
+    pulseReadout(source, 'loss-drain');
+    if (reducedMotion()) return;
+
+    const point = centerOf(source);
+    for (let i = 0; i < 4; i += 1) {
+        const end = { x: point.x + (i - 1.5) * 16, y: point.y + 90 };
+        transferToken(point, end, { delay: i * 55, duration: 520, color: '#bd5555', index: i });
+    }
+}
 
 function flyMoney(text, negative = false) {
     const rect = el.bankroll.getBoundingClientRect();
@@ -1065,13 +1276,13 @@ function syncSoundIcon() {
 
 el.chips.addEventListener('click', e => {
     const chip = e.target.closest('.chip');
-    if (chip && !chip.disabled) addToBet(Number(chip.dataset.value));
+    if (chip && !chip.disabled) addToBet(Number(chip.dataset.value), chip);
 });
 el.clearBet.addEventListener('click', clearBet);
-el.maxBet.addEventListener('click', () => addToBet(game.bankroll));
+el.maxBet.addEventListener('click', () => addToBet(game.bankroll, el.maxBet));
 el.rebet.addEventListener('click', () => {
     clearBet();
-    addToBet(game.lastBet);
+    addToBet(game.lastBet, el.rebet);
     startRound();
 });
 

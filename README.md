@@ -91,6 +91,12 @@ At settlement, a short decision note explains the line that shaped the hand.
 The **Again** button then repeats the previous ante and deals immediately, so a
 new attempt is one deliberate click away.
 
+The money also stays spatially legible: chips travel from the selected stake to
+**In Play**, then return to **Bankroll** at settlement while both totals count in
+sync. Wins, exact 21s, hot streaks, table goals, new session peaks, pushes, and
+losses each use a distinct but brief layer of motion and sound. The effects are
+automatically reduced when the operating system requests less motion.
+
 ## Payouts
 
 | Result | Pays |

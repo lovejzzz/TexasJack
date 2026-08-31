@@ -80,6 +80,7 @@ button { font-family: inherit; }
 }
 
 .readout {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -114,6 +115,45 @@ button { font-family: inherit; }
 
 .readout-value.bump { animation: bump .42s cubic-bezier(.2, 1.6, .4, 1); }
 @keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.28); } 100% { transform: scale(1); } }
+.readout.money-catch { animation: moneyCatch .42s cubic-bezier(.2, 1.5, .35, 1); }
+.readout.payout-catch { animation: payoutCatch .7s cubic-bezier(.2, 1.45, .35, 1); }
+.readout.loss-drain { animation: lossDrain .65s ease; }
+.readout.streak-earned { animation: streakEarned .72s cubic-bezier(.2, 1.4, .3, 1); }
+.readout.streak-hotter { animation: streakHotter 1s cubic-bezier(.2, 1.4, .3, 1); }
+@keyframes moneyCatch {
+    40% { transform: translateY(-3px) scale(1.05); border-color: rgba(242, 199, 106, .58); }
+}
+@keyframes payoutCatch {
+    35% { transform: translateY(-5px) scale(1.1); border-color: var(--gold-hot); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 0 30px rgba(242,199,106,.58); }
+}
+@keyframes lossDrain {
+    45% { transform: translateY(2px) scale(.96); border-color: rgba(210, 85, 85, .5); filter: saturate(.6); }
+}
+@keyframes streakEarned { 42% { transform: scale(1.08); border-color: rgba(255, 171, 91, .66); } }
+@keyframes streakHotter {
+    35% { transform: translateY(-4px) scale(1.12) rotate(-1deg); box-shadow: 0 0 30px rgba(255, 125, 55, .48); }
+    65% { transform: translateY(-1px) scale(1.04) rotate(1deg); }
+}
+.readout.bankroll.new-peak {
+    overflow: visible;
+    animation: peakGlow 1.4s ease;
+}
+.readout.bankroll.new-peak::after {
+    content: 'NEW PEAK';
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 5px);
+    transform: translateX(-50%);
+    color: var(--gold-hot);
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: .16em;
+    white-space: nowrap;
+    text-shadow: 0 0 10px rgba(242, 199, 106, .7);
+}
+@keyframes peakGlow {
+    35% { transform: scale(1.1); border-color: var(--gold-hot); box-shadow: 0 0 34px rgba(242, 199, 106, .62); }
+}
 
 .tools {
     display: flex;
@@ -321,6 +361,17 @@ button:focus-visible {
 
 .lane.active { box-shadow: inset 0 0 0 1px rgba(70, 224, 139, .5), 0 0 34px rgba(70, 224, 139, .12); }
 .lane-community.active { box-shadow: inset 0 0 0 1px rgba(255, 215, 140, .6), 0 0 34px rgba(255, 215, 140, .16); }
+.lane.winner { animation: laneWinner 1.65s ease both; }
+.lane.perfect-win { animation: perfectWinner 1.8s ease both; }
+.lane.winner .card { filter: drop-shadow(0 0 12px rgba(255, 225, 150, .32)); }
+@keyframes laneWinner {
+    25%, 62% { box-shadow: inset 0 0 0 2px rgba(242, 199, 106, .72), 0 0 38px rgba(242, 199, 106, .24); }
+}
+@keyframes perfectWinner {
+    20% { box-shadow: inset 0 0 0 2px #fff0a8, 0 0 45px rgba(255, 225, 120, .45); }
+    48% { box-shadow: inset 0 0 0 3px rgba(255,255,255,.82), 0 0 62px rgba(242, 199, 106, .58); }
+    80% { box-shadow: inset 0 0 0 2px rgba(242, 199, 106, .62), 0 0 32px rgba(242, 199, 106, .22); }
+}
 
 .cards {
     flex: 1;
@@ -914,6 +965,73 @@ button:focus-visible {
 }
 
 /* ---- Flying money -------------------------------------------------------- */
+
+.transfer-token {
+    position: fixed;
+    z-index: 1020;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 36% 28%, #fff6cf 0 8%, transparent 9%),
+        radial-gradient(circle, color-mix(in srgb, var(--token-color) 76%, white), var(--token-color) 63%, color-mix(in srgb, var(--token-color) 55%, black) 64% 100%);
+    border: 1px solid color-mix(in srgb, var(--token-color) 72%, white);
+    box-shadow: inset 0 0 0 3px rgba(0, 0, 0, .12), 0 3px 7px rgba(0, 0, 0, .45), 0 0 10px color-mix(in srgb, var(--token-color) 48%, transparent);
+}
+.transfer-token::after {
+    content: '';
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    left: 6px;
+    top: 6px;
+    transform: rotate(45deg);
+    border: 1px solid rgba(70, 45, 10, .58);
+}
+.micro-spark {
+    position: fixed;
+    z-index: 1022;
+    width: 4px;
+    height: 4px;
+    margin: -2px 0 0 -2px;
+    border-radius: 50%;
+    pointer-events: none;
+    background: var(--spark-color);
+    box-shadow: 0 0 8px var(--spark-color);
+    animation: microSpark .72s cubic-bezier(.15,.7,.3,1) forwards;
+}
+@keyframes microSpark {
+    0% { transform: translate(0, 0) scale(.4); opacity: 0; }
+    20% { opacity: 1; }
+    100% { transform: translate(var(--spark-x), var(--spark-y)) scale(0); opacity: 0; }
+}
+.payout-arrival {
+    position: fixed;
+    z-index: 1024;
+    transform: translate(-50%, 0);
+    pointer-events: none;
+    padding: 5px 9px;
+    border-radius: 999px;
+    color: var(--gold-hot);
+    background: rgba(5, 18, 13, .94);
+    border: 1px solid rgba(242, 199, 106, .52);
+    box-shadow: 0 8px 22px rgba(0,0,0,.42), 0 0 18px rgba(242,199,106,.18);
+    font-family: var(--font-num);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    opacity: 0;
+    animation: payoutArrival 1.35s cubic-bezier(.2,.9,.25,1) both;
+}
+.payout-arrival.peak { color: #fff3b3; border-color: var(--gold-hot); }
+@keyframes payoutArrival {
+    0% { transform: translate(-50%, 10px) scale(.72); opacity: 0; }
+    18%, 72% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -15px) scale(.94); opacity: 0; }
+}
 
 .money-fly {
     position: fixed;
