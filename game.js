@@ -233,10 +233,27 @@ async function dealTo(hand, container, card, { faceDown = false, flipAfter = tru
     return node;
 }
 
-/** Long hands fan into each other rather than running off the felt. */
+/** Fan only as much as the current card zone needs, at every viewport size. */
 function reflow(container) {
     const n = container.children.length;
-    container.style.setProperty('--overlap', n > 6 ? Math.min(0.5, (n - 6) * 0.11) : 0);
+    const card = container.querySelector('.card');
+    if (n < 2 || !card) {
+        container.style.setProperty('--overlap-px', '0px');
+        return;
+    }
+
+    const cardWidth = card.getBoundingClientRect().width;
+    const gap = parseFloat(getComputedStyle(container).columnGap) || 0;
+    const available = Math.max(0, container.clientWidth - 8);
+    const natural = cardWidth * n + gap * (n - 1);
+    const overlap = cardWidth > 0
+        ? Math.min(cardWidth * 0.94, Math.max(0, (natural - available) / (n - 1)))
+        : 0;
+    container.style.setProperty('--overlap-px', `${overlap}px`);
+}
+
+function reflowAll() {
+    [el.dealerCards, el.sharedCards, el.playerCards].forEach(reflow);
 }
 
 function clearTable() {
@@ -1140,7 +1157,10 @@ document.addEventListener('keydown', e => {
 ['pointerdown', 'keydown'].forEach(evt =>
     window.addEventListener(evt, () => SFX.unlock(), { once: true }));
 
-window.addEventListener('resize', sizeCanvas);
+window.addEventListener('resize', () => {
+    sizeCanvas();
+    requestAnimationFrame(reflowAll);
+});
 
 /* ---- Boot ---------------------------------------------------------------- */
 

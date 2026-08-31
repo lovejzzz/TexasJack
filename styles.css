@@ -261,7 +261,7 @@ button { font-family: inherit; }
 .lane-community .cards { justify-content: center; }
 
 /* When a hand runs long the cards fan into each other instead of overflowing. */
-.cards .card + .card { margin-left: calc(var(--card-w) * var(--overlap, 0) * -1); }
+.cards .card + .card { margin-left: calc(var(--overlap-px, 0px) * -1); }
 
 /* ---- Pill totals --------------------------------------------------------- */
 
@@ -720,8 +720,9 @@ button { font-family: inherit; }
 
 .btn {
     position: relative;
-    padding: clamp(11px, 1.7vh, 17px) clamp(14px, 2.2vw, 30px);
-    font-size: clamp(12px, 1.7vh, 15px);
+    min-height: clamp(58px, 7.5vh, 82px);
+    padding: clamp(14px, 2.1vh, 21px) clamp(14px, 2.2vw, 30px);
+    font-size: clamp(13px, 1.9vh, 17px);
     font-weight: 800;
     letter-spacing: .14em;
     text-transform: uppercase;
@@ -1020,6 +1021,68 @@ kbd {
 
 /* ---- Responsive ---------------------------------------------------------- */
 
+/* Wide screens use the table like a table: the two private hands flank a
+   larger shared board. This keeps the cards visually dense instead of
+   stretching three mostly-empty horizontal lanes across the entire felt. */
+@media (min-width: 900px) and (min-height: 561px) {
+    :root { --card-h: clamp(150px, 26vh, 248px); }
+
+    .felt {
+        display: grid;
+        grid-template-columns: minmax(190px, .82fr) minmax(300px, 1.42fr) minmax(190px, .82fr);
+        grid-template-areas: "dealer community player";
+        align-items: stretch;
+        justify-content: stretch;
+        gap: clamp(10px, 1.4vw, 20px);
+        padding: clamp(14px, 2.2vh, 26px) clamp(16px, 2.2vw, 32px);
+    }
+
+    .lane {
+        min-width: 0;
+        padding: clamp(12px, 1.7vh, 18px) clamp(12px, 1.3vw, 18px);
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(0, 0, 0, .12), rgba(255, 255, 255, .025));
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .09);
+    }
+    .lane-dealer { grid-area: dealer; }
+    .lane-community { grid-area: community; }
+    .lane-player { grid-area: player; }
+
+    .lane-community {
+        background: radial-gradient(90% 86% at 50% 46%, rgba(255, 231, 176, .13), rgba(255, 231, 176, .025));
+        box-shadow: inset 0 0 0 1px rgba(255, 215, 140, .34), 0 10px 28px rgba(0, 0, 0, .12);
+    }
+    .lane-community::before,
+    .lane-community::after { left: 20px; right: 20px; }
+
+    .lane-head {
+        justify-content: center;
+        flex-wrap: wrap;
+        text-align: center;
+    }
+    .lane-dealer .lane-hint {
+        flex-basis: 100%;
+        min-height: 1.3em;
+    }
+    .cards,
+    .lane-player .cards,
+    .lane-dealer .cards,
+    .lane-community .cards { justify-content: center; }
+
+    .shoe {
+        top: 18px;
+        right: 18px;
+        width: calc(var(--card-w) * .5);
+        height: calc(var(--card-h) * .5);
+        opacity: .82;
+    }
+    .scout-slot {
+        top: calc(24px + var(--card-h) * .58);
+        right: 22px;
+        width: calc(var(--card-h) / 1.4 * .48);
+    }
+}
+
 @media (max-width: 760px) {
     /* Height still drives the card, just a shorter one so three lanes fit. */
     :root { --card-h: clamp(74px, 13.5vh, 150px); }
@@ -1033,8 +1096,7 @@ kbd {
     /* The community caption is decorative; the dealer read is the whole game. */
     .lane-hint { display: none; }
     #dealerRead { display: inline; }
-
-    .btn { padding: 13px 4px; letter-spacing: .02em; font-size: 11.5px; }
+    .btn { min-height: 50px; padding: 13px 4px; letter-spacing: .02em; font-size: 11.5px; }
     .btn kbd { display: none; }
     .tally { margin-left: 3px; min-width: 1.2em; padding: 0 3px; }
     .shoe { display: none; }
@@ -1058,7 +1120,7 @@ kbd {
 /* Five action buttons on a small phone need every pixel. */
 @media (max-width: 400px) {
     .actions { gap: 4px; }
-    .btn { font-size: 10px; padding: 12px 2px; }
+    .btn { min-height: 50px; font-size: 10px; padding: 12px 2px; }
     .money-choice-grid { grid-template-columns: 1.35fr .85fr; gap: 5px; }
     .money-btn { min-height: 58px; padding-left: 10px; padding-right: 26px; }
     .money-btn kbd { display: none; }
@@ -1098,7 +1160,7 @@ kbd {
     .money-detail { display: none; }
     .money-btn kbd { right: 8px; }
     .money-main { gap: 5px; }
-    .actions .btn { padding-top: 8px; padding-bottom: 8px; }
+    .actions .btn { min-height: 38px; padding-top: 8px; padding-bottom: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
