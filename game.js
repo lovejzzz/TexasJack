@@ -30,6 +30,7 @@ const el = {
     maxBet: $('maxBet'),
     rebet: $('rebet'),
     dealBtn: $('dealBtn'),
+    dealLabel: $('dealLabel'),
     hitBtn: $('hitBtn'),
     standBtn: $('standBtn'),
     raiseBtn: $('raiseBtn'),
@@ -54,7 +55,7 @@ const el = {
     rulesClose: $('rulesClose'),
     rulesGo: $('rulesGo'),
     soundBtn: $('soundBtn'),
-    soundIcon: $('soundIcon'),
+    soundLabel: $('soundLabel'),
     fx: $('fx'),
     dealerRead: $('dealerRead'),
     boardBtn: $('boardBtn'),
@@ -457,12 +458,7 @@ function syncControls() {
         node.hidden = node.dataset.variant !== game.mode;
     });
 
-    el.dealBtn.textContent = betting && broke ? 'Rebuy' : 'Deal';
-    if (!el.dealBtn.querySelector('kbd')) {
-        const k = document.createElement('kbd');
-        k.textContent = '↵';
-        el.dealBtn.appendChild(k);
-    }
+    el.dealLabel.textContent = betting && broke ? 'Rebuy' : 'Deal';
 }
 
 /* ---- Betting ------------------------------------------------------------- */
@@ -1061,7 +1057,9 @@ function closeRules() {
 }
 
 function syncSoundIcon() {
-    el.soundIcon.textContent = SFX.muted ? '🔇' : '🔊';
+    el.soundBtn.classList.toggle('is-muted', SFX.muted);
+    el.soundLabel.textContent = SFX.muted ? 'Sound off' : 'Sound on';
+    el.soundBtn.title = SFX.muted ? 'Sound off (M)' : 'Sound on (M)';
     el.soundBtn.setAttribute('aria-pressed', String(!SFX.muted));
 }
 

@@ -134,6 +134,7 @@ npm test
 | `styles.css` | Felt, cards, chips, animations, responsive layout |
 | `cards.js` | The deck, and every card face drawn as inline SVG |
 | `audio.js` | All sound effects, synthesised with the Web Audio API |
+| `asset/ui-icons.svg` | Custom brass-table icons for tools, decisions, and actions |
 | `rules.js` | Pure table-goal rotation, completion, and decision feedback rules |
 | `game.js` | Game state machine, dealing, betting, settlement |
 

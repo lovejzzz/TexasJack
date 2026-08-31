@@ -33,9 +33,18 @@
         </div>
 
         <div class="tools">
-            <button class="icon-btn" id="rulesBtn" title="How to play (?)" aria-label="How to play">?</button>
+            <button class="icon-btn rules-tool" id="rulesBtn" title="How to play (?)" aria-label="How to play">
+                <span class="tool-core" aria-hidden="true">
+                    <svg><use href="asset/ui-icons.svg#rules"></use></svg>
+                </span>
+                <span class="tool-label">Rules</span>
+            </button>
             <button class="icon-btn" id="soundBtn" title="Sound (M)" aria-label="Toggle sound">
-                <span id="soundIcon">🔊</span>
+                <span class="tool-core" aria-hidden="true">
+                    <svg class="sound-on"><use href="asset/ui-icons.svg#volume-on"></use></svg>
+                    <svg class="sound-off"><use href="asset/ui-icons.svg#volume-off"></use></svg>
+                </span>
+                <span class="tool-label" id="soundLabel">Sound on</span>
             </button>
         </div>
     </header>
@@ -93,13 +102,19 @@
                 <div class="bet-meta">
                     <button class="mini-btn" id="clearBet">Clear</button>
                     <button class="mini-btn" id="maxBet">Max</button>
-                    <button class="mini-btn again" id="rebet" aria-label="Re-bet and deal">Again</button>
+                    <button class="mini-btn again" id="rebet" aria-label="Re-bet and deal">
+                        <svg class="mini-icon" aria-hidden="true"><use href="asset/ui-icons.svg#deal"></use></svg>
+                        Again
+                    </button>
                 </div>
             </div>
 
             <div class="play-money" id="playMoney" hidden>
                 <div class="table-goal" id="challengeBox">
-                    <span class="challenge-label">Table goal</span>
+                    <span class="challenge-label">
+                        <svg class="label-icon" aria-hidden="true"><use href="asset/ui-icons.svg#goal"></use></svg>
+                        Table goal
+                    </span>
                     <b id="challengeText">—</b>
                     <em id="challengeReward"></em>
                 </div>
@@ -110,6 +125,7 @@
                     </div>
                     <div class="money-choice-grid">
                         <button class="money-btn raise" id="raiseBtn" disabled>
+                            <span class="money-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#raise"></use></svg></span>
                             <span class="money-kicker">Back your read</span>
                             <span class="money-main">
                                 <span class="money-label">Raise</span>
@@ -119,6 +135,7 @@
                             <kbd>R</kbd>
                         </button>
                         <button class="money-btn scout" id="scoutBtn" disabled>
+                            <span class="money-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#scout"></use></svg></span>
                             <span class="money-kicker">Buy information</span>
                             <span class="money-main">
                                 <span class="money-label">Scout</span>
@@ -133,12 +150,26 @@
         </div>
 
         <div class="actions">
-            <button class="btn btn-deal"   id="dealBtn">Deal <kbd>↵</kbd></button>
-            <button class="btn btn-hit"    id="hitBtn"    disabled>Hit <kbd>H</kbd></button>
-            <button class="btn btn-board"  id="boardBtn"  disabled hidden>Board <kbd>B</kbd></button>
-            <button class="btn btn-hand"   id="handBtn"   disabled hidden>Hand
+            <button class="btn btn-deal" id="dealBtn">
+                <span class="btn-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#deal"></use></svg></span>
+                <span class="btn-label" id="dealLabel">Deal</span><kbd>↵</kbd>
+            </button>
+            <button class="btn btn-hit" id="hitBtn" disabled>
+                <span class="btn-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#hit"></use></svg></span>
+                <span class="btn-label">Hit</span><kbd>H</kbd>
+            </button>
+            <button class="btn btn-board" id="boardBtn" disabled hidden>
+                <span class="btn-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#board"></use></svg></span>
+                <span class="btn-label">Board</span><kbd>B</kbd>
+            </button>
+            <button class="btn btn-hand" id="handBtn" disabled hidden>
+                <span class="btn-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#hand"></use></svg></span>
+                <span class="btn-label">Hand</span>
                 <span class="tally" id="handLeft">2</span><kbd>H</kbd></button>
-            <button class="btn btn-stand"  id="standBtn"  disabled>Stand <kbd>S</kbd></button>
+            <button class="btn btn-stand" id="standBtn" disabled>
+                <span class="btn-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#stand"></use></svg></span>
+                <span class="btn-label">Stand</span><kbd>S</kbd>
+            </button>
         </div>
     </footer>
 </div>
