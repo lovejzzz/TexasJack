@@ -9,12 +9,15 @@
     <link rel="icon" type="image/png" href="asset/title.png">
     <link rel="preload" as="image" href="asset/Win.png">
     <link rel="preload" as="image" href="asset/Lose.png">
-    <link rel="stylesheet" href="styles.css?v=four-seat-4">
+    <link rel="preload" as="image" href="asset/rival-portrait-atlas.jpg">
+    <link rel="stylesheet" href="styles.css?v=four-seat-art-1">
 </head>
 <body class="table-mode">
 <div class="table table-arena">
     <header class="topbar">
-        <img src="asset/title.png" alt="Texas Jack" class="brand">
+        <a href="index.html" class="table-wordmark" aria-label="Texas Jack home">
+            <span>Texas</span><b>Jack</b>
+        </a>
 
         <nav class="game-switch" aria-label="Game table">
             <a href="index.html">Quick Duel</a>
@@ -97,6 +100,10 @@
         </section>
 
         <section class="board-well" aria-label="Shared board">
+            <div class="table-mark" aria-hidden="true">
+                <span>TJ</span>
+                <small>Four seats · one pot</small>
+            </div>
             <div class="board-kicker">
                 <span>Shared board</span>
                 <small>Only unlocked seats take the next card</small>
@@ -210,8 +217,8 @@
 
 <canvas id="fx" aria-hidden="true"></canvas>
 <script src="cards.js"></script>
-<script src="audio.js?v=four-seat-4"></script>
-<script src="rules.js?v=four-seat-4"></script>
-<script src="table-game.js?v=four-seat-4"></script>
+<script src="audio.js?v=four-seat-art-1"></script>
+<script src="rules.js?v=four-seat-art-1"></script>
+<script src="table-game.js?v=four-seat-art-1"></script>
 </body>
 </html>

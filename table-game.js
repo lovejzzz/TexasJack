@@ -309,6 +309,8 @@ function render() {
     renderMoney();
     game.seats.forEach(renderSeat);
     renderCards(el.sharedCards, game.shared, false);
+    el.felt.classList.toggle('is-idle-table', game.phase === PHASE.BET);
+    el.felt.classList.toggle('has-board-cards', game.shared.length > 0);
     el.shoeCount.textContent = game.deck.remaining;
     el.felt.querySelectorAll('.ring-seat').forEach(node => node.classList.remove('is-turn'));
     const current = game.seats[game.turn];

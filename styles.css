@@ -1475,6 +1475,677 @@ kbd {
     .actions .btn { min-height: 38px; padding-top: 8px; padding-bottom: 8px; }
 }
 
+/* Gothic finish: candlelit bottle-green felt, blackened brass and restrained
+   character color. The UI stays readable while the table feels less cheerful. */
+.table-mode {
+    --gold: #c4a667;
+    --gold-hot: #ead8a6;
+    --good: #72b98d;
+    --ink: #eee8da;
+    --ink-dim: rgba(238,232,218,.52);
+    background:
+        radial-gradient(55% 70% at 8% 40%, rgba(73, 14, 28, .2), transparent 72%),
+        radial-gradient(60% 70% at 92% 35%, rgba(45, 19, 65, .18), transparent 72%),
+        radial-gradient(90% 70% at 50% -10%, rgba(42, 66, 53, .34), transparent 64%),
+        #020504;
+}
+.table-mode .table-wordmark {
+    color: #d8d0c0;
+    font-family: 'Palatino Linotype', Palatino, Georgia, serif;
+    letter-spacing: -.015em;
+    text-shadow: 0 3px 18px #000, 0 0 16px rgba(123,29,46,.18);
+}
+.table-mode .table-wordmark span { letter-spacing: .08em; }
+.table-mode .table-wordmark b { color: #bda466; }
+.table-mode .table-wordmark::after { background: linear-gradient(90deg, #745b35, #bda466 46%, transparent 88%); }
+.table-mode .game-switch {
+    border-color: rgba(180,152,91,.2);
+    background: rgba(0,3,2,.72);
+}
+.table-mode .game-switch a[aria-current='page'] {
+    color: #17130d;
+    background: linear-gradient(180deg, #d2bd83, #92713b);
+}
+.table-mode .readout {
+    border-color: rgba(194,163,99,.16);
+    background:
+        linear-gradient(180deg, rgba(31,46,38,.72), rgba(5,13,9,.78));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 5px 18px rgba(0,0,0,.38);
+}
+.table-mode .readout-label { color: rgba(217,205,180,.44); }
+.table-mode .readout.bankroll .readout-value { color: #cbb174; text-shadow: 0 0 16px rgba(190,154,84,.24); }
+.table-mode .pot-readout .readout-value { color: #7fb293; }
+.table-mode .icon-btn {
+    background:
+        radial-gradient(circle at 38% 28%, #253028, #0b110d 58%, #030504) padding-box,
+        conic-gradient(from 20deg, #4b3920, #b49a5d, #564224, #8c733e, #3e2c18, #b49a5d) border-box;
+    color: #c7b77f;
+    filter: saturate(.78);
+}
+.table-mode .ring-felt {
+    border-color: transparent;
+    background:
+        radial-gradient(ellipse at 50% 43%, rgba(17, 91, 64, .68) 0%, rgba(6, 57, 40, .94) 43%, rgba(2, 29, 20, .99) 78%) padding-box,
+        repeating-linear-gradient(104deg, #120808 0 7px, #29120f 8px 14px, #180b09 15px 21px, #351712 22px 26px) border-box;
+    box-shadow:
+        inset 0 0 0 2px rgba(187,151,79,.28),
+        inset 0 0 0 6px rgba(0,0,0,.46),
+        inset 0 0 0 8px rgba(132,91,42,.12),
+        inset 0 30px 92px rgba(0,0,0,.58),
+        0 4px 0 #0b0404,
+        0 28px 70px rgba(0,0,0,.75);
+}
+.table-mode .ring-felt::after {
+    border-color: rgba(166,137,77,.24);
+    box-shadow: inset 0 0 70px rgba(0,0,0,.2), 0 0 28px rgba(176,136,71,.025);
+}
+.table-mode .felt-glow {
+    background: radial-gradient(ellipse, rgba(193,158,91,.08), rgba(38,99,73,.045) 38%, transparent 68%);
+}
+.table-mode .felt-glow::before,
+.table-mode .felt-glow::after {
+    content: '◆';
+    position: absolute;
+    top: 50%;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    transform: translateY(-50%) rotate(45deg);
+    border: 1px solid rgba(164,128,67,.24);
+    color: rgba(186,149,78,.23);
+    font-family: Georgia, serif;
+    font-size: 8px;
+    box-shadow: inset 0 0 0 4px rgba(0,0,0,.08);
+}
+.table-mode .felt-glow::before { left: -12%; }
+.table-mode .felt-glow::after { right: -12%; }
+.table-mode .rival-seat {
+    border-color: rgba(176,149,91,.18);
+    border-radius: 16px 16px 8px 8px;
+    background:
+        linear-gradient(145deg, rgba(11,18,14,.97), rgba(1,5,3,.87));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 14px 32px rgba(0,0,0,.42);
+}
+.table-mode .seat-rock { background: linear-gradient(145deg, rgba(11,27,21,.97), rgba(1,6,4,.9)); }
+.table-mode .seat-shark { background: linear-gradient(145deg, rgba(24,14,29,.96), rgba(4,3,6,.9)); }
+.table-mode .seat-spark { background: linear-gradient(145deg, rgba(34,14,14,.95), rgba(6,3,3,.9)); }
+.table-mode .rival-avatar {
+    border-color: rgba(176,143,79,.52);
+    border-radius: 13px 13px 7px 7px;
+    filter: saturate(.9) contrast(1.08);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.7), 0 6px 18px rgba(0,0,0,.62);
+}
+.table-mode .rival-identity b {
+    color: #e8dfce;
+    font-family: 'Palatino Linotype', Palatino, Georgia, serif;
+    letter-spacing: .025em;
+}
+.table-mode .rival-identity small { color: #a98d54; }
+.table-mode .seat-stack {
+    border-color: rgba(180,149,83,.2);
+    color: #c8b071;
+    background: rgba(0,0,0,.42);
+}
+.table-mode .seat-range { border-color: rgba(168,138,77,.33); color: #c5a866; }
+.table-mode .board-well::before {
+    border-color: rgba(165,133,72,.28);
+    background:
+        radial-gradient(ellipse at center, rgba(173,144,88,.07), rgba(7,53,37,.05) 48%, rgba(0,13,9,.28) 82%);
+}
+.table-mode .board-kicker span { color: rgba(215,204,181,.64); }
+.table-mode .table-pot {
+    border-color: rgba(170,138,72,.46);
+    background:
+        radial-gradient(circle at 38% 24%, rgba(204,174,111,.1), transparent 38%),
+        rgba(0,7,4,.88);
+}
+.table-mode .table-pot b { color: #cbb170; }
+.table-mode .table-mark span {
+    color: rgba(177,148,87,.34);
+    font-family: 'Palatino Linotype', Palatino, Georgia, serif;
+    text-shadow: 0 9px 28px #00150e;
+}
+.table-mode .table-mark::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    top: 50%;
+    left: 50%;
+    width: clamp(118px, 13vw, 178px);
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+    border: 1px solid rgba(164,132,73,.18);
+    border-radius: 50%;
+    background:
+        repeating-conic-gradient(from -7deg, rgba(179,145,78,.16) 0 1deg, transparent 1deg 22.5deg),
+        radial-gradient(circle, transparent 0 42%, rgba(172,140,78,.12) 42.5% 43.5%, transparent 44% 62%, rgba(172,140,78,.1) 62.5% 63.5%, transparent 64%);
+    -webkit-mask: radial-gradient(circle, transparent 0 27%, #000 28% 70%, transparent 71%);
+    mask: radial-gradient(circle, transparent 0 27%, #000 28% 70%, transparent 71%);
+}
+.table-mode .table-mark small { color: rgba(214,201,173,.3); }
+.table-mode .human-seat {
+    border-color: rgba(105,172,132,.3);
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(78,130,101,.1), transparent 58%),
+        linear-gradient(180deg, rgba(3,31,21,.94), rgba(0,12,8,.9));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 -8px 28px rgba(0,0,0,.18), 0 14px 32px rgba(0,0,0,.34);
+}
+.table-mode .human-seat::before { background: linear-gradient(90deg, transparent, rgba(108,179,139,.55), transparent); }
+.table-mode .ante-panel,
+.table-mode .turn-panel,
+.table-mode .response-panel {
+    border-color: rgba(155,126,67,.16);
+    background: linear-gradient(180deg, rgba(8,16,12,.9), rgba(1,4,3,.94));
+}
+.table-mode .ante-copy { border-color: rgba(154,123,64,.25); background: rgba(0,4,2,.62); }
+.table-mode .ante-chips { filter: saturate(.65) brightness(.86); }
+.table-mode .ante-chips .chip.selected { filter: saturate(.8) brightness(1.12); }
+.table-mode .btn-deal {
+    background: radial-gradient(80% 120% at 50% -30%, #eee4c5, transparent 58%), linear-gradient(180deg, #d5c08a, #94733e);
+}
+.table-mode .btn-board {
+    background: radial-gradient(80% 120% at 50% -30%, #ded4b8, transparent 58%), linear-gradient(180deg, #c1a96e, #826331);
+}
+.table-mode .btn-hand,
+.table-mode .btn-hit {
+    background: radial-gradient(80% 120% at 50% -30%, #c9dfcf, transparent 58%), linear-gradient(180deg, #91b89e, #4e8063);
+}
+.table-mode .btn-stand {
+    background: radial-gradient(80% 120% at 50% -30%, #dec4bb, transparent 58%), linear-gradient(180deg, #b77d70, #71413d);
+}
+.table-mode .pressure-action {
+    border-color: rgba(145,62,62,.58);
+    background: radial-gradient(circle at 10% 10%, rgba(139,57,47,.18), transparent 38%), linear-gradient(135deg, rgba(64,18,24,.94), rgba(15,7,9,.96));
+}
+.table-mode .pressure-action small,
+.table-mode .pressure-action em { color: #c99078; }
+
+/* ==========================================================================
+   Four-seat art direction — The Brass Room
+   Compact character pods orbit a single shared table instead of filling the
+   felt with nested debug panels. Kept as a late layer so duel mode is untouched.
+   ========================================================================== */
+
+.table-mode {
+    --ring-card-h: clamp(72px, 13vh, 116px);
+    background:
+        radial-gradient(100% 72% at 50% -15%, rgba(63, 90, 72, .4), transparent 62%),
+        linear-gradient(180deg, #071711 0%, #020906 100%);
+}
+.table-mode .table-arena {
+    max-width: 1680px;
+    padding-left: clamp(10px, 2.1vw, 34px);
+    padding-right: clamp(10px, 2.1vw, 34px);
+}
+.table-mode .topbar { min-height: clamp(48px, 6.5vh, 66px); }
+
+.table-wordmark {
+    position: relative;
+    display: inline-flex;
+    align-items: baseline;
+    gap: .32em;
+    padding: 6px 2px;
+    color: #f7eed6;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(18px, 2.4vw, 31px);
+    letter-spacing: -.045em;
+    line-height: .85;
+    text-decoration: none;
+    text-transform: uppercase;
+    text-shadow: 0 4px 16px rgba(0, 0, 0, .7);
+}
+.table-wordmark span { font-weight: 400; }
+.table-wordmark b {
+    color: var(--gold-hot);
+    font-style: italic;
+    font-weight: 700;
+}
+.table-wordmark::after {
+    content: '';
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    bottom: 0;
+    height: 1px;
+    background: linear-gradient(90deg, var(--gold), transparent 88%);
+    opacity: .65;
+}
+
+.table-mode .ring-felt {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: clamp(112px, 16vh, 148px) minmax(180px, 1fr) clamp(108px, 14vh, 136px);
+    grid-template-areas:
+        'rock shark spark'
+        'board board board'
+        'you you you';
+    gap: clamp(8px, 1.2vw, 16px);
+    padding: clamp(14px, 2vh, 24px) clamp(14px, 2vw, 30px);
+    isolation: isolate;
+    border: clamp(8px, .9vw, 13px) solid #492819;
+    border-radius: clamp(30px, 4vw, 62px);
+    background:
+        radial-gradient(ellipse at 50% 47%, rgba(24, 123, 85, .62) 0%, rgba(8, 78, 55, .86) 42%, rgba(3, 42, 29, .98) 82%),
+        #063d2c;
+    box-shadow:
+        inset 0 0 0 2px rgba(244, 202, 111, .21),
+        inset 0 0 0 7px rgba(28, 10, 6, .28),
+        inset 0 28px 80px rgba(0, 0, 0, .38),
+        0 24px 60px rgba(0, 0, 0, .58);
+}
+.table-mode .ring-felt::before {
+    z-index: 0;
+    opacity: .23;
+    background-image:
+        repeating-linear-gradient(42deg, rgba(255,255,255,.045) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(-42deg, rgba(0,0,0,.06) 0 1px, transparent 1px 4px);
+}
+.table-mode .ring-felt::after {
+    z-index: 0;
+    left: 4.5%;
+    top: 5%;
+    width: 91%;
+    height: 90%;
+    transform: none;
+    border: 1px solid rgba(247, 211, 135, .2);
+    border-radius: 48% / 43%;
+    box-shadow: inset 0 0 45px rgba(0, 0, 0, .12), 0 0 28px rgba(245, 208, 126, .035);
+}
+.table-mode .felt-glow {
+    z-index: 0;
+    inset: 10% 16%;
+    height: auto;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(255, 229, 174, .115), transparent 66%);
+    filter: blur(7px);
+}
+
+.table-mode .ring-seat,
+.table-mode .board-well {
+    position: relative;
+    z-index: 2;
+    min-width: 0;
+    min-height: 0;
+}
+.table-mode .rival-seat {
+    align-self: start;
+    min-height: 108px;
+    padding: clamp(10px, 1.25vh, 14px);
+    overflow: visible;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 22px;
+    background:
+        linear-gradient(135deg, rgba(12, 29, 22, .94), rgba(3, 13, 9, .76)),
+        rgba(3, 15, 10, .85);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.07),
+        0 13px 28px rgba(0,0,0,.28);
+    backdrop-filter: blur(8px);
+}
+.table-mode .rival-seat::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    right: 15px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    opacity: .7;
+}
+.table-mode .seat-rock::before { background: linear-gradient(90deg, #77b18d, transparent); }
+.table-mode .seat-shark::before { background: linear-gradient(90deg, #a47bde, transparent); }
+.table-mode .seat-spark::before { background: linear-gradient(90deg, #e9804e, transparent); }
+.table-mode .rival-topline {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 11px;
+}
+.table-mode .rival-avatar {
+    display: block;
+    width: clamp(50px, 5.5vh, 62px);
+    height: clamp(50px, 5.5vh, 62px);
+    flex: 0 0 auto;
+    border: 2px solid rgba(244, 212, 148, .4);
+    border-radius: 18px;
+    background-image: url('asset/rival-portrait-atlas.jpg');
+    background-repeat: no-repeat;
+    background-size: 300% 100%;
+    box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,.14),
+        0 7px 18px rgba(0,0,0,.48);
+    color: transparent;
+    font-size: 0;
+}
+.table-mode .rock-avatar { background-position: left center; }
+.table-mode .shark-avatar { background-position: center center; }
+.table-mode .spark-avatar { background-position: right center; }
+.table-mode .rival-identity b {
+    color: #fff7e7;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(14px, 1.45vw, 18px);
+    font-weight: 500;
+    letter-spacing: .01em;
+}
+.table-mode .rival-identity small {
+    margin-top: 3px;
+    color: rgba(242, 199, 106, .72);
+    font-size: 7px;
+    letter-spacing: .19em;
+}
+.table-mode .seat-stack {
+    align-self: start;
+    padding: 5px 8px;
+    border: 1px solid rgba(242,199,106,.18);
+    border-radius: 999px;
+    color: var(--gold-hot);
+    background: rgba(0,0,0,.24);
+    font-size: clamp(10px, 1vw, 12px);
+}
+.table-mode .rival-state {
+    width: calc(100% - 78px);
+    min-height: 24px;
+    margin-top: 8px;
+}
+.table-mode .seat-range {
+    min-width: 49px;
+    padding: 4px 8px;
+    border-color: rgba(242,199,106,.34);
+    background: rgba(0,0,0,.28);
+    font-size: 10px;
+}
+.table-mode .seat-status {
+    color: rgba(246,241,230,.64);
+    font-size: 8px;
+}
+.table-mode .rival-cards {
+    position: absolute;
+    right: 12px;
+    bottom: 8px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    width: 74px;
+    height: 54px;
+    padding: 0;
+}
+.table-mode .rival-cards .ring-card { --ring-card-h: clamp(49px, 6.6vh, 63px); }
+.table-mode .rival-cards .ring-card + .ring-card { margin-left: calc(var(--ring-card-w) * -.72); }
+
+.table-mode .board-well {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    align-items: center;
+    justify-items: center;
+    padding: clamp(22px, 3vh, 34px) clamp(52px, 6vw, 90px) 10px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+.table-mode .board-well::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: 3% 3.5%;
+    border: 1px solid rgba(245, 205, 120, .27);
+    border-radius: 50%;
+    background:
+        radial-gradient(ellipse at center, rgba(255,230,174,.095), rgba(8,65,46,.08) 50%, rgba(1,26,18,.18) 80%);
+    box-shadow:
+        inset 0 0 0 5px rgba(0,0,0,.055),
+        inset 0 22px 60px rgba(0,0,0,.1),
+        0 0 38px rgba(247, 205, 113, .035);
+}
+.table-mode .board-well::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    left: 13%;
+    right: 13%;
+    bottom: 11%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(247,212,139,.26), transparent);
+}
+.table-mode .board-kicker {
+    position: absolute;
+    z-index: 3;
+    top: 10%;
+    left: 7%;
+    padding: 0;
+}
+.table-mode .board-kicker span { color: rgba(255,247,226,.72); font-size: 8px; letter-spacing: .24em; }
+.table-mode .board-kicker small { color: rgba(255,255,255,.42); font-size: 7px; }
+.table-mode .table-pot {
+    position: absolute;
+    z-index: 4;
+    top: 7%;
+    left: 50%;
+    display: grid;
+    place-items: center;
+    gap: 1px;
+    min-width: 66px;
+    min-height: 54px;
+    padding: 8px 13px;
+    transform: translateX(-50%);
+    border: 1px solid rgba(242,199,106,.4);
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 38% 24%, rgba(255,235,180,.13), transparent 40%),
+        rgba(3,14,10,.8);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 8px 18px rgba(0,0,0,.28);
+}
+.table-mode .table-pot span { font-size: 6px; letter-spacing: .18em; }
+.table-mode .table-pot b { font-size: 15px; }
+.table-mode .table-mark {
+    position: absolute;
+    z-index: 0;
+    top: 51%;
+    left: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform: translate(-50%, -50%);
+    opacity: .5;
+    pointer-events: none;
+    transition: opacity .35s, transform .35s;
+}
+.table-mode .table-mark span {
+    color: rgba(255, 224, 158, .42);
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(48px, 6vw, 82px);
+    font-style: italic;
+    line-height: .8;
+    text-shadow: 0 8px 24px rgba(0,0,0,.22);
+}
+.table-mode .table-mark small {
+    margin-top: 12px;
+    color: rgba(255,247,225,.38);
+    font-size: 7px;
+    font-weight: 850;
+    letter-spacing: .32em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.table-mode .ring-felt:not(.is-idle-table) .table-mark { opacity: .16; transform: translate(-50%, -50%) scale(.92); }
+.table-mode .ring-felt.has-board-cards .table-mark { opacity: .06; }
+.table-mode .board-cards {
+    position: relative;
+    z-index: 2;
+    grid-column: auto;
+    width: 100%;
+    height: 100%;
+    padding: clamp(24px, 4vh, 40px) 54px 2px;
+}
+.table-mode .board-cards .ring-card + .ring-card { margin-left: calc(var(--ring-card-w) * -.22); }
+.table-mode .table-shoe { right: 6%; bottom: 12%; opacity: .58; }
+
+.table-mode .human-seat {
+    align-self: end;
+    justify-self: center;
+    width: min(720px, 68%);
+    min-height: 104px;
+    display: grid;
+    grid-template-columns: minmax(160px, .72fr) minmax(0, 1.45fr);
+    align-items: stretch;
+    padding: 10px 15px;
+    overflow: visible;
+    border: 1px solid rgba(91, 229, 154, .34);
+    border-radius: 22px 22px 10px 10px;
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(71, 195, 127, .13), transparent 58%),
+        linear-gradient(180deg, rgba(4,42,29,.9), rgba(2,20,14,.86));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 -8px 28px rgba(0,0,0,.15), 0 13px 30px rgba(0,0,0,.25);
+}
+.table-mode .human-seat::before {
+    content: '';
+    position: absolute;
+    left: 16%;
+    right: 16%;
+    top: -1px;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, rgba(103,244,171,.75), transparent);
+}
+.table-mode .human-meta { align-content: center; }
+.table-mode .human-meta .lane-name {
+    color: rgba(255,255,255,.78);
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 14px;
+    letter-spacing: .16em;
+}
+.table-mode .human-cards { position: relative; z-index: 2; }
+
+.table-mode .table-status {
+    min-height: 1.45em;
+    color: rgba(246,241,230,.72);
+    font-size: clamp(11px, 1.55vh, 14px);
+}
+.table-mode .ante-panel,
+.table-mode .turn-panel,
+.table-mode .response-panel {
+    padding: 7px;
+    border: 1px solid rgba(242,199,106,.12);
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(8,26,19,.72), rgba(2,10,7,.82));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 10px 26px rgba(0,0,0,.2);
+}
+.table-mode .table-deal { border-radius: 14px; }
+.table-mode .pressure-action,
+.table-mode .table-actions .btn,
+.table-mode .response-panel .btn { border-radius: 14px; }
+
+@media (max-width: 1100px) {
+    .table-mode .ring-felt {
+        grid-template-rows: clamp(104px, 15vh, 132px) minmax(160px, 1fr) clamp(102px, 13vh, 124px);
+        gap: 8px;
+        padding: 13px;
+    }
+    .table-mode .rival-seat { min-height: 101px; padding: 9px; }
+    .table-mode .rival-avatar { width: 46px; height: 46px; border-radius: 14px; }
+    .table-mode .rival-topline { gap: 8px; }
+    .table-mode .rival-identity b { font-size: 14px; }
+    .table-mode .seat-stack { padding: 4px 6px; font-size: 9px; }
+    .table-mode .rival-state { width: calc(100% - 64px); margin-top: 6px; }
+    .table-mode .rival-state .seat-status { display: none; }
+    .table-mode .rival-cards { right: 8px; bottom: 7px; }
+    .table-mode .human-seat { width: min(680px, 78%); }
+}
+
+@media (max-width: 760px) {
+    .table-mode .table-arena { padding-left: 7px; padding-right: 7px; }
+    .table-mode .topbar { min-height: 39px; gap: 6px; }
+    .table-wordmark { font-size: 16px; }
+    .table-mode .ring-felt {
+        grid-template-rows: minmax(92px, .7fr) minmax(150px, 1.25fr) minmax(104px, .8fr);
+        gap: 5px;
+        padding: 8px 7px;
+        border-width: 7px;
+        border-radius: 25px;
+    }
+    .table-mode .ring-felt::after { left: 2%; top: 3%; width: 96%; height: 94%; }
+    .table-mode .rival-seat { min-height: 88px; padding: 6px; border-radius: 13px; overflow: hidden; }
+    .table-mode .rival-topline { grid-template-columns: auto minmax(0,1fr); gap: 5px; }
+    .table-mode .rival-avatar { width: 34px; height: 38px; border-width: 1px; border-radius: 10px; }
+    .table-mode .rival-identity b { font-size: 11px; }
+    .table-mode .rival-identity small { margin-top: 1px; font-size: 5px; }
+    .table-mode .seat-stack {
+        grid-column: 2;
+        justify-self: start;
+        margin-top: -2px;
+        padding: 0;
+        border: 0;
+        background: none;
+        font-size: 8px;
+    }
+    .table-mode .rival-state { width: auto; min-height: 16px; margin: 3px 0 0; }
+    .table-mode .seat-range { min-width: 34px; padding: 2px 5px; font-size: 7px; }
+    .table-mode .rival-cards { right: 4px; bottom: 4px; width: 44px; height: 38px; }
+    .table-mode .rival-cards .ring-card { --ring-card-h: 39px; }
+    .table-mode .board-well { padding: 18px 28px 6px; }
+    .table-mode .board-well::before { inset: 4% 1%; }
+    .table-mode .board-kicker { top: 9%; left: 5%; }
+    .table-mode .board-kicker span { font-size: 6px; }
+    .table-mode .board-kicker small { display: none; }
+    .table-mode .table-pot { top: 5%; min-width: 52px; min-height: 40px; padding: 5px 9px; }
+    .table-mode .table-pot b { font-size: 11px; }
+    .table-mode .table-mark span { font-size: 43px; }
+    .table-mode .table-mark small { margin-top: 8px; font-size: 5px; letter-spacing: .22em; }
+    .table-mode .board-cards { padding: 24px 24px 0; }
+    .table-mode .table-shoe { display: none; }
+    .table-mode .human-seat {
+        width: 100%;
+        min-height: 96px;
+        grid-template-columns: minmax(108px, .75fr) minmax(0, 1.45fr);
+        padding: 7px 9px;
+        border-radius: 14px 14px 8px 8px;
+    }
+    .table-mode .human-meta .lane-name { font-size: 11px; }
+    .table-mode .ante-panel,
+    .table-mode .turn-panel,
+    .table-mode .response-panel { padding: 4px; border-radius: 13px; }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+    .table-mode { --ring-card-h: clamp(55px, 23vh, 78px); }
+    .table-mode .table-arena { padding-top: 4px; gap: 2px; }
+    .table-mode .topbar { min-height: 30px; }
+    .table-wordmark { font-size: 15px; }
+    .table-mode .ring-felt {
+        grid-template-rows: minmax(58px, .65fr) minmax(82px, 1fr) minmax(58px, .66fr);
+        gap: 3px;
+        padding: 5px 7px;
+        border-width: 6px;
+        border-radius: 20px;
+    }
+    .table-mode .rival-seat { min-height: 54px; padding: 4px 6px; border-radius: 9px; }
+    .table-mode .rival-avatar { width: 26px; height: 29px; border-radius: 7px; }
+    .table-mode .rival-identity b { font-size: 10px; }
+    .table-mode .rival-identity small { display: none; }
+    .table-mode .seat-stack { grid-column: auto; justify-self: end; font-size: 7px; }
+    .table-mode .rival-state { position: absolute; top: auto; right: 4px; bottom: 4px; margin: 0; }
+    .table-mode .rival-cards { display: none; }
+    .table-mode .board-well { padding: 4px 52px; }
+    .table-mode .board-kicker { left: 4%; top: 9%; }
+    .table-mode .table-pot { top: 4%; min-width: 45px; min-height: 34px; padding: 3px 7px; }
+    .table-mode .table-mark { display: none; }
+    .table-mode .board-cards { position: relative; inset: auto; padding: 8px 28px 0; }
+    .table-mode .human-seat {
+        width: min(590px, 72%);
+        min-height: 54px;
+        grid-template-columns: minmax(105px,.7fr) minmax(0,1.5fr);
+        padding: 3px 8px;
+        border-radius: 10px;
+    }
+    .table-mode .human-meta .lane-name { font-size: 9px; }
+    .table-mode .table-status { min-height: 1em; font-size: 8px; line-height: 1.2; }
+    .table-mode .ante-panel,
+    .table-mode .turn-panel,
+    .table-mode .response-panel { padding: 3px; border-radius: 10px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: .01ms !important;
@@ -2044,4 +2715,110 @@ kbd {
     .response-panel { grid-template-columns: minmax(260px,1.3fr) minmax(140px,.6fr) minmax(140px,.6fr); gap: 5px; }
     .pressure-prompt { grid-column: auto; padding: 5px 9px; }
     .response-panel .btn { min-height: 42px; padding: 5px; }
+}
+
+/* Final gothic cascade — intentionally last so the responsive legacy table
+   rules cannot repaint the art-directed surface or portrait treatment. */
+.table-mode { --ring-card-h: clamp(96px, 17vh, 154px); }
+.table-mode .ring-felt {
+    grid-template-rows: clamp(112px, 15vh, 142px) minmax(190px, 1fr) clamp(132px, 19vh, 174px);
+    border-color: transparent;
+    background:
+        radial-gradient(ellipse at 50% 43%, rgba(14,78,55,.72) 0%, rgba(5,48,34,.95) 44%, rgba(1,23,16,.99) 79%) padding-box,
+        repeating-linear-gradient(104deg, #100707 0 7px, #29120f 8px 14px, #170a08 15px 21px, #351712 22px 26px) border-box;
+    box-shadow:
+        inset 0 0 0 2px rgba(187,151,79,.28),
+        inset 0 0 0 6px rgba(0,0,0,.46),
+        inset 0 0 0 8px rgba(132,91,42,.12),
+        inset 0 30px 92px rgba(0,0,0,.6),
+        0 4px 0 #0b0404,
+        0 28px 70px rgba(0,0,0,.75);
+}
+.table-mode .ring-felt::after {
+    border-color: rgba(166,137,77,.24);
+    box-shadow: inset 0 0 70px rgba(0,0,0,.2), 0 0 28px rgba(176,136,71,.025);
+}
+.table-mode .rival-seat {
+    border-color: rgba(176,149,91,.18);
+    border-radius: 16px 16px 8px 8px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 14px 32px rgba(0,0,0,.42);
+}
+.table-mode .seat-rock { background: linear-gradient(145deg, rgba(11,27,21,.97), rgba(1,6,4,.91)); }
+.table-mode .seat-shark { background: linear-gradient(145deg, rgba(24,14,29,.96), rgba(4,3,6,.91)); }
+.table-mode .seat-spark { background: linear-gradient(145deg, rgba(34,14,14,.95), rgba(6,3,3,.91)); }
+.table-mode .rival-avatar {
+    width: clamp(56px, 6.2vh, 66px);
+    height: clamp(56px, 6.2vh, 66px);
+    border-color: rgba(176,143,79,.52);
+    border-radius: 13px 13px 7px 7px;
+    background-size: 330% 110%;
+    filter: saturate(.88) brightness(1.38) contrast(1.08);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.72), 0 6px 18px rgba(0,0,0,.62);
+}
+.table-mode .rival-identity b {
+    color: #e8dfce;
+    font-family: 'Palatino Linotype', Palatino, Georgia, serif;
+    letter-spacing: .025em;
+}
+.table-mode .rival-identity small { color: #a98d54; }
+.table-mode .seat-stack { border-color: rgba(180,149,83,.2); color: #c8b071; background: rgba(0,0,0,.42); }
+.table-mode .seat-range { border-color: rgba(168,138,77,.33); color: #c5a866; }
+.table-mode .board-well::before {
+    border-color: rgba(165,133,72,.28);
+    background: radial-gradient(ellipse at center, rgba(173,144,88,.07), rgba(7,53,37,.05) 48%, rgba(0,13,9,.28) 82%);
+}
+.table-mode .board-cards { padding-top: clamp(26px, 3.4vh, 34px); }
+.table-mode .table-pot {
+    border-color: rgba(170,138,72,.46);
+    background: radial-gradient(circle at 38% 24%, rgba(204,174,111,.1), transparent 38%), rgba(0,7,4,.88);
+}
+.table-mode .table-pot b { color: #cbb170; }
+.table-mode .table-mark span {
+    color: rgba(177,148,87,.34);
+    font-family: 'Palatino Linotype', Palatino, Georgia, serif;
+}
+.table-mode .human-seat {
+    width: min(820px, 75%);
+    min-height: 126px;
+    grid-template-columns: minmax(175px, .68fr) minmax(0, 1.55fr);
+    border-color: rgba(105,172,132,.3);
+    background: radial-gradient(ellipse at 50% 0%, rgba(78,130,101,.1), transparent 58%), linear-gradient(180deg, rgba(3,31,21,.94), rgba(0,12,8,.9));
+}
+.table-mode .ante-panel,
+.table-mode .turn-panel,
+.table-mode .response-panel {
+    border-color: rgba(155,126,67,.16);
+    background: linear-gradient(180deg, rgba(8,16,12,.9), rgba(1,4,3,.94));
+}
+
+@media (max-width: 760px) {
+    .table-mode { --ring-card-h: clamp(88px, 15.5vh, 124px); }
+    .table-mode .ring-felt {
+        grid-template-rows: minmax(92px, .65fr) minmax(170px, 1.22fr) minmax(124px, .86fr);
+    }
+    .table-mode .rival-avatar { width: 36px; height: 40px; border-radius: 9px 9px 5px 5px; }
+    .table-mode .rival-seat .seat-stack { display: none; }
+    .table-mode .rival-seat .rival-state {
+        position: absolute;
+        z-index: 4;
+        left: 5px;
+        right: auto;
+        bottom: 4px;
+        margin: 0;
+    }
+    .table-mode .board-cards { padding: 23px 12px 0; }
+    .table-mode .human-seat {
+        width: 100%;
+        min-height: 118px;
+        grid-template-columns: minmax(106px, .64fr) minmax(0, 1.55fr);
+    }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+    .table-mode { --ring-card-h: clamp(60px, 25vh, 88px); }
+    .table-mode .ring-felt { grid-template-rows: minmax(58px,.58fr) minmax(92px,1fr) minmax(74px,.72fr); }
+    .table-mode .rival-avatar { width: 27px; height: 30px; border-radius: 7px 7px 4px 4px; }
+    .table-mode .board-cards { padding: 8px 20px 0; }
+    .table-mode .table-pot { left: auto; right: 8%; transform: none; }
+    .table-mode .human-seat { min-height: 70px; width: min(650px, 78%); }
 }
