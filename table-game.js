@@ -90,6 +90,10 @@ function writeJson(key, value) {
 const mainSave = readJson('tj.save');
 const tableSave = readJson('tj.table');
 
+function savedCount(value, fallback = 0) {
+    return Number.isFinite(value) && value >= 0 ? Math.floor(value) : fallback;
+}
+
 function seat(id, profile, stack) {
     const info = profile ? tableProfiles[profile] : { name: 'You', title: 'Player' };
     return {
@@ -108,15 +112,15 @@ function seat(id, profile, stack) {
     };
 }
 
-const startingBank = Number.isFinite(mainSave.bankroll) ? mainSave.bankroll : START_BANK;
+const startingBank = savedCount(mainSave.bankroll, START_BANK);
 const savedStacks = tableSave.stacks || {};
 const game = {
     deck: new Deck(),
     seats: [
         seat('you', null, startingBank),
-        seat('rock', 'rock', Number.isFinite(savedStacks.rock) ? savedStacks.rock : START_BANK),
-        seat('shark', 'shark', Number.isFinite(savedStacks.shark) ? savedStacks.shark : START_BANK),
-        seat('spark', 'spark', Number.isFinite(savedStacks.spark) ? savedStacks.spark : START_BANK)
+        seat('rock', 'rock', savedCount(savedStacks.rock, START_BANK)),
+        seat('shark', 'shark', savedCount(savedStacks.shark, START_BANK)),
+        seat('spark', 'spark', savedCount(savedStacks.spark, START_BANK))
     ],
     shared: [],
     phase: PHASE.BET,
@@ -128,8 +132,8 @@ const game = {
     pendingResponse: null,
     responseResolve: null,
     roundToken: 0,
-    handNumber: Number(tableSave.hands) || 0,
-    wins: Number(tableSave.wins) || 0,
+    handNumber: savedCount(tableSave.hands),
+    wins: Math.min(savedCount(tableSave.hands), savedCount(tableSave.wins)),
     revealAll: false,
     resultReady: false
 };
@@ -442,7 +446,10 @@ function commit(seatState, amount) {
     SFX.chip();
     flyChip(seatState);
     renderMoney();
-    persist();
+    // A live hand is transactional. Persisting each ante/call without also
+    // restoring the round made a refresh permanently lose chips. Settlement
+    // commits the complete hand atomically; a mid-hand reload returns to the
+    // last finished table state.
     return paid;
 }
 
@@ -803,7 +810,9 @@ async function finishHand() {
     game.resultReady = true;
     el.result.classList.remove('hidden');
     el.result.setAttribute('aria-hidden', 'false');
-    requestAnimationFrame(() => el.againBtn.focus());
+    // The overlay transitions visibility for 220 ms; focusing before it is
+    // actually visible is ignored by browsers. Land focus after that handoff.
+    setTimeout(() => el.againBtn.focus(), 260);
 }
 
 function readyNextHand() {
@@ -824,6 +833,7 @@ function readyNextHand() {
     el.result.setAttribute('aria-hidden', 'true');
     render();
     setStatus('Choose the next ante. Everyone buys in at the same price.');
+    setTimeout(() => el.dealBtn.focus(), 0);
 }
 
 function syncSound() {
@@ -838,18 +848,26 @@ function rulesFocusables() {
 }
 
 function openRules() {
-    if (!el.rulesModal.classList.contains('hidden')) return;
+    // Keep one focus-owning surface at a time. The persistent result dialog
+    // already covers the table; stacking the rules modal over it creates an
+    // ambiguous focus trap and an unnecessarily expensive double backdrop.
+    if (game.phase === PHASE.OVER || !el.rulesModal.classList.contains('hidden')) return;
     rulesReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     el.rulesModal.classList.remove('hidden');
     el.shell.setAttribute('inert', '');
-    requestAnimationFrame(() => el.rulesClose.focus());
+    setTimeout(() => el.rulesClose.focus(), 0);
 }
 
 function closeRules() {
     if (el.rulesModal.classList.contains('hidden')) return;
     el.rulesModal.classList.add('hidden');
-    el.shell.removeAttribute('inert');
-    requestAnimationFrame(() => (rulesReturnFocus && document.contains(rulesReturnFocus) ? rulesReturnFocus : el.rulesBtn).focus());
+    const resultOwnsFocus = game.phase === PHASE.OVER;
+    if (!resultOwnsFocus) el.shell.removeAttribute('inert');
+    const target = resultOwnsFocus
+        ? (game.resultReady ? el.againBtn : null)
+        : (rulesReturnFocus && document.contains(rulesReturnFocus) ? rulesReturnFocus : el.rulesBtn);
+    rulesReturnFocus = null;
+    if (target) setTimeout(() => target.focus(), 0);
 }
 
 const fxCtx = el.fx.getContext('2d');
@@ -946,6 +964,10 @@ document.addEventListener('keydown', event => {
     else if (key === 'm') { SFX.toggleMute(); syncSound(); }
     else if (key === '?' || key === '/') openRules();
     else if (key === 'enter') {
+        // Prevent the browser from also clicking whichever button receives
+        // focus during this state change. Without this, one Enter could both
+        // dismiss the result and immediately deal the next hand.
+        event.preventDefault();
         if (game.phase === PHASE.BET && !el.dealBtn.disabled) startHand();
         else if (game.phase === PHASE.OVER) readyNextHand();
     }

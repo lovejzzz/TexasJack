@@ -888,6 +888,7 @@ button:focus-visible {
 .bet-meta { display: flex; gap: 6px; }
 
 .mini-btn {
+    min-height: 40px;
     padding: 7px 12px;
     font-size: 11px;
     letter-spacing: .12em;
@@ -1191,7 +1192,7 @@ button:focus-visible {
 .modal-close {
     position: absolute;
     top: 14px; right: 14px;
-    width: 32px; height: 32px;
+    width: 44px; height: 44px;
     border-radius: 50%;
     border: 1px solid rgba(255, 255, 255, .16);
     background: rgba(255, 255, 255, .06);
@@ -2420,6 +2421,9 @@ kbd {
 .table-shoe span { z-index: 1; padding: 2px 4px; border-radius: 4px; background: rgba(0,0,0,.6); }
 
 .ring-card {
+    /* Recompute width on each card. Rival cards override their own height;
+       inheriting the table-level width left those compact cards stretched. */
+    --ring-card-w: calc(var(--ring-card-h) / 1.4);
     position: relative;
     width: var(--ring-card-w);
     height: var(--ring-card-h);

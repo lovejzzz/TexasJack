@@ -7,18 +7,30 @@
 const SFX = (() => {
     let ctx = null;
     let master = null;
-    let muted = localStorage.getItem('tj.muted') === '1';
+    let muted = false;
+
+    try { muted = localStorage.getItem('tj.muted') === '1'; }
+    catch { /* Storage can be blocked while audio still remains available. */ }
 
     function ensure() {
         if (!ctx) {
             const AC = window.AudioContext || window.webkitAudioContext;
             if (!AC) return null;
-            ctx = new AC();
-            master = ctx.createGain();
-            master.gain.value = 0.5;
-            master.connect(ctx.destination);
+            try {
+                ctx = new AC();
+                master = ctx.createGain();
+                master.gain.value = 0.5;
+                master.connect(ctx.destination);
+            } catch {
+                ctx = null;
+                master = null;
+                return null;
+            }
         }
-        if (ctx.state === 'suspended') ctx.resume();
+        if (ctx.state === 'suspended') {
+            const resumed = ctx.resume();
+            if (resumed && typeof resumed.catch === 'function') resumed.catch(() => {});
+        }
         return ctx;
     }
 
@@ -69,7 +81,8 @@ const SFX = (() => {
         get muted() { return muted; },
         toggleMute() {
             muted = !muted;
-            localStorage.setItem('tj.muted', muted ? '1' : '0');
+            try { localStorage.setItem('tj.muted', muted ? '1' : '0'); }
+            catch { /* Keep the in-memory preference for this session. */ }
             if (!muted) api.chip();
             return muted;
         },

@@ -9,7 +9,7 @@
     <link rel="icon" type="image/png" href="asset/title.png">
     <link rel="preload" as="image" href="asset/Win.png">
     <link rel="preload" as="image" href="asset/Lose.png">
-    <link rel="stylesheet" href="styles.css?v=four-seat-4">
+    <link rel="stylesheet" href="styles.css?v=stability-2">
 </head>
 <body>
 <div class="table">
@@ -63,7 +63,7 @@
                 <span class="pill" id="dealerTotal" data-state="idle">—</span>
                 <span class="lane-hint" id="dealerRead">stands on 17</span>
                 <span class="dealer-pressure" id="dealerPressure" data-level="0">Pressure 0</span>
-                <span class="dealer-counter locked" id="dealerCounter" title="Pressing can unlock one adaptive draw">Counter locked</span>
+                <span class="dealer-counter locked" id="dealerCounter" role="status" title="Pressing can unlock one adaptive draw">Counter locked</span>
             </div>
             <div class="cards" id="dealerCards" aria-live="polite"></div>
         </section>
@@ -280,8 +280,8 @@
 <canvas id="fx" aria-hidden="true"></canvas>
 
 <script src="cards.js"></script>
-<script src="audio.js?v=four-seat-4"></script>
-<script src="rules.js?v=four-seat-4"></script>
-<script src="game.js?v=four-seat-4"></script>
+<script src="audio.js?v=stability-2"></script>
+<script src="rules.js?v=stability-2"></script>
+<script src="game.js?v=stability-2"></script>
 </body>
 </html>

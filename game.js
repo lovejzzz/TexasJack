@@ -120,6 +120,14 @@ const save = {
 
 const persisted = save.read();
 
+function savedCount(value, fallback = 0) {
+    return Number.isFinite(value) && value >= 0 ? Math.floor(value) : fallback;
+}
+
+const savedBankroll = savedCount(persisted.bankroll, START_BANK);
+const savedHands = savedCount(persisted.hands);
+const savedWins = Math.min(savedHands, savedCount(persisted.wins));
+
 const game = {
     deck: new Deck(),
     player: [],
@@ -127,10 +135,10 @@ const game = {
     shared: [],
     dealerBoard: [],
     phase: PHASE.BET,
-    bankroll: Number.isFinite(persisted.bankroll) ? persisted.bankroll : START_BANK,
+    bankroll: savedBankroll,
     bet: 0,
-    lastBet: persisted.lastBet || 0,
-    streak: persisted.streak || 0,
+    lastBet: savedCount(persisted.lastBet),
+    streak: savedCount(persisted.streak),
     ante: 0,
     scouted: null,
     scoutUsed: false,
@@ -147,9 +155,9 @@ const game = {
     counterUsed: false,
     pressure: 0,
     dealerIntent: null,
-    hands: persisted.hands || 0,
-    wins: persisted.wins || 0,
-    best: persisted.best || (Number.isFinite(persisted.bankroll) ? persisted.bankroll : START_BANK),
+    hands: savedHands,
+    wins: savedWins,
+    best: Math.max(savedBankroll, savedCount(persisted.best, savedBankroll)),
     seen: !!persisted.seen,
     mode: persisted.mode === 'routed' ? 'routed' : 'classic',
     privateLeft: PRIVATE_DRAWS
