@@ -42,11 +42,12 @@ Four-Seat is a separate, faster table mode: you face three readable AI rivals
 while a neutral shoe deals the cards. All four seats ante into one pot, start
 with one private card, and share the centre board.
 
-On your turn you can send the next card to the **Board**, take one of two
-private **Hand** draws, or **Lock** your current total. Locking freezes the
-number: future board cards only affect seats that are still active. A single
-Board card can therefore save you, break two rivals at once, or leave a locked
-opponent untouched.
+The shared path is capped at three cards: the automatic **Opening Board**, the
+**Turn**, and the **Final Board**. On your turn you can call the next Board,
+take one of two private **Hand** draws, or **Lock** your current total. Before
+another seat reveals a Board card, every active player chooses **Ride** or
+**Lock** without seeing the card. The caller rides automatically. Locking
+freezes the number, so later Board cards leave that seat untouched.
 
 Once per board state, any seat can apply **Pressure** for half the ante. Every
 remaining player must Call or Fold. A new Board card reopens the betting window.
@@ -162,7 +163,7 @@ too — you went over first. Pushes happen when both hands finish level.
 `↵` deal · `S` stand · `R` press · `P` scout · `1`–`4` place chips ·
 `M` mute · `?` rules · `Esc` dismiss
 
-`H` hit (Dealer's Call) · `B` board / `H` hand (Your Call)
+`H` hit (Dealer's Call) · `B` board / `H` hand / `R` ride prompt (Your Call)
 
 ## Running it
 

@@ -9,6 +9,7 @@ const {
     tablePressureCost,
     tableAiMove,
     tableCallDecision,
+    tableBoardDecision,
     tableShowdown
 } = window.TJRules;
 
@@ -39,6 +40,10 @@ const el = {
     dealLabel: $('dealLabel'),
     turnPanel: $('turnPanel'),
     boardBtn: $('boardBtn'),
+    boardLabel: $('boardLabel'),
+    boardActionNote: $('boardActionNote'),
+    boardStage: $('boardStage'),
+    boardStageNote: $('boardStageNote'),
     handBtn: $('handBtn'),
     handLeft: $('handLeft'),
     lockBtn: $('lockBtn'),
@@ -51,6 +56,12 @@ const el = {
     callBtn: $('callBtn'),
     callAmount: $('callAmount'),
     foldBtn: $('foldBtn'),
+    boardResponsePanel: $('boardResponsePanel'),
+    boardResponseKicker: $('boardResponseKicker'),
+    boardResponseText: $('boardResponseText'),
+    boardLockTotal: $('boardLockTotal'),
+    rideBtn: $('rideBtn'),
+    boardLockBtn: $('boardLockBtn'),
     rulesModal: $('rulesModal'),
     rulesBtn: $('rulesBtn'),
     rulesClose: $('rulesClose'),
@@ -68,13 +79,14 @@ const el = {
 
 const PHASE = {
     BET: 'bet', DEALING: 'dealing', PLAYER: 'player', AI: 'ai',
-    RESOLVING: 'resolving', RESPOND: 'respond', OVER: 'over'
+    RESOLVING: 'resolving', RESPOND: 'respond', BOARD_RESPOND: 'board-respond', OVER: 'over'
 };
 const START_BANK = 1000;
 const REBUY = 500;
 const MIN_ANTE = 25;
 const ANTE_OPTIONS = [25, 50, 100, 250];
 const PRIVATE_DRAWS = 2;
+const MAX_BOARD_CARDS = 3;
 const UNKNOWN_RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'A'];
 
 function readJson(key, fallback = {}) {
@@ -131,6 +143,8 @@ const game = {
     pressureUsedAt: null,
     pendingResponse: null,
     responseResolve: null,
+    pendingBoard: null,
+    boardResolve: null,
     roundToken: 0,
     handNumber: savedCount(tableSave.hands),
     wins: Math.min(savedCount(tableSave.hands), savedCount(tableSave.wins)),
@@ -163,6 +177,20 @@ function countedBoard(seatState) {
 
 function totalOf(seatState) {
     return handTotal(seatState.hand, countedBoard(seatState));
+}
+
+function boardStageName(count = game.shared.length) {
+    if (count <= 1) return 'Opening Board';
+    if (count === 2) return 'Turn';
+    return 'Final Board';
+}
+
+function nextBoardName() {
+    return game.shared.length <= 1 ? 'Turn' : 'Final Board';
+}
+
+function boardAvailable() {
+    return game.shared.length < MAX_BOARD_CARDS;
 }
 
 function totalState(total, live = true) {
@@ -298,8 +326,10 @@ function renderControls() {
         game.ante = affordable[affordable.length - 1] || MIN_ANTE;
     }
     el.antePanel.hidden = !betting;
-    el.turnPanel.hidden = betting || game.phase === PHASE.RESPOND || game.phase === PHASE.OVER;
+    const answering = game.phase === PHASE.RESPOND || game.phase === PHASE.BOARD_RESPOND;
+    el.turnPanel.hidden = betting || answering || game.phase === PHASE.OVER;
     el.responsePanel.hidden = game.phase !== PHASE.RESPOND;
+    el.boardResponsePanel.hidden = game.phase !== PHASE.BOARD_RESPOND;
 
     el.anteChips.querySelectorAll('.chip').forEach(chip => {
         const amount = Number(chip.dataset.value);
@@ -313,7 +343,18 @@ function renderControls() {
     el.dealBtn.disabled = !betting || game.ante > availableStack;
 
     const yourTurn = game.phase === PHASE.PLAYER;
-    el.boardBtn.disabled = !yourTurn;
+    const boardOpen = boardAvailable();
+    el.boardBtn.disabled = !yourTurn || !boardOpen;
+    el.boardLabel.textContent = boardOpen ? `Call the ${nextBoardName()}` : 'Board sealed';
+    el.boardActionNote.textContent = boardOpen
+        ? 'Everyone chooses Ride or Lock'
+        : 'Opening · Turn · Final complete';
+    const boardCount = game.shared.length;
+    el.boardStage.textContent = `${boardStageName(boardCount)} · ${Math.min(boardCount, MAX_BOARD_CARDS)}/${MAX_BOARD_CARDS}`;
+    const remaining = Math.max(0, MAX_BOARD_CARDS - boardCount);
+    el.boardStageNote.textContent = remaining
+        ? `${remaining} shared ${remaining === 1 ? 'reveal' : 'reveals'} remain`
+        : 'Board sealed · no more shared cards';
     el.handBtn.disabled = !yourTurn || you().privateLeft <= 0;
     el.lockBtn.disabled = !yourTurn;
     el.handLeft.textContent = you().privateLeft;
@@ -321,7 +362,9 @@ function renderControls() {
     el.pressureCost.textContent = money(cost);
     el.pressureBtn.disabled = !pressureAvailable();
     if (game.pressureUsedAt === game.boardVersion) {
-        el.pressureNote.textContent = 'Pressure spent · next Board reopens';
+        el.pressureNote.textContent = boardOpen
+            ? 'Pressure spent · next Board reopens'
+            : 'Pressure spent · board sealed';
     } else if (you().stack < cost) {
         el.pressureNote.textContent = 'Not enough chips to raise';
     } else {
@@ -334,6 +377,14 @@ function renderControls() {
         el.responseText.textContent = `Call ${money(responseCost)} to stay in?`;
         el.callAmount.textContent = money(responseCost);
         el.callBtn.disabled = you().stack < responseCost;
+    }
+
+    if (game.phase === PHASE.BOARD_RESPOND && game.pendingBoard) {
+        const { initiator, stageName } = game.pendingBoard;
+        const state = totalOf(you());
+        el.boardResponseKicker.textContent = `${initiator.name} calls the ${stageName}`;
+        el.boardResponseText.textContent = `Ride the unseen card or lock ${state.total}${state.soft ? ' soft' : ''}?`;
+        el.boardLockTotal.textContent = `Freeze ${state.total}${state.soft ? ' soft' : ''}`;
     }
 }
 
@@ -483,11 +534,14 @@ async function startHand() {
     game.boardVersion = 0;
     game.pressureUsedAt = null;
     game.pendingResponse = null;
+    game.pendingBoard = null;
+    game.boardResolve = null;
     game.revealAll = false;
     game.resultReady = false;
     game.deck = new Deck();
     el.result.classList.add('hidden');
     el.result.setAttribute('aria-hidden', 'true');
+    el.result.setAttribute('inert', '');
 
     game.seats.forEach(seatState => {
         if (seatState.id !== 'you' && seatState.stack < game.ante) seatState.stack = START_BANK;
@@ -536,20 +590,84 @@ function breakActiveSeats() {
     return broken;
 }
 
+async function resolveBoardWindow(initiator) {
+    if (!boardAvailable()) return false;
+    const token = game.roundToken;
+    const stageNumber = game.shared.length + 1;
+    const stageName = nextBoardName();
+    initiator.lastAction = `CALLS ${stageName.toUpperCase()} · RIDING`;
+    flashSeat(initiator, 'seat-called');
+    render();
+    setStatus(`<b>${initiator.name}</b> calls the ${stageName}. The table must Ride or Lock.`);
+    await sleep(reducedMotion() ? 10 : 420);
+
+    for (const target of game.seats.slice(1)) {
+        if (token !== game.roundToken || target === initiator || !active(target)) continue;
+        const state = totalOf(target);
+        const decision = tableBoardDecision({
+            total: state.total,
+            soft: state.soft,
+            profile: target.profile,
+            stage: stageNumber,
+            roll: Math.random()
+        });
+        if (decision.ride) {
+            target.lastAction = `RIDES ${stageName.toUpperCase()} · ${decision.reason}`;
+            flashSeat(target, 'seat-called');
+        } else {
+            target.status = 'locked';
+            target.lockedAt = game.shared.length;
+            target.lastAction = `LOCKED BEFORE ${stageName.toUpperCase()} · ${decision.reason}`;
+            flashSeat(target, 'seat-locked');
+        }
+        render();
+        await sleep(reducedMotion() ? 10 : 260);
+    }
+
+    if (initiator.id !== 'you' && active(you())) {
+        game.pendingBoard = { initiator, stageName, stageNumber };
+        game.phase = PHASE.BOARD_RESPOND;
+        render();
+        const ride = await new Promise(resolve => { game.boardResolve = resolve; });
+        game.boardResolve = null;
+        if (token !== game.roundToken) return false;
+        if (ride) {
+            you().lastAction = `RIDES ${stageName.toUpperCase()} · accepted the shared risk`;
+            flashSeat(you(), 'seat-called');
+        } else {
+            you().status = 'locked';
+            you().lockedAt = game.shared.length;
+            you().lastAction = `LOCKED BEFORE ${stageName.toUpperCase()} · protected the number`;
+            flashSeat(you(), 'seat-locked');
+        }
+        game.pendingBoard = null;
+        game.phase = PHASE.RESOLVING;
+        render();
+        await sleep(reducedMotion() ? 10 : 320);
+    }
+    return token === game.roundToken;
+}
+
 async function takeAction(seatState, action, reason = '') {
     const token = game.roundToken;
+    if (action === 'board' && !boardAvailable()) {
+        action = seatState.privateLeft > 0 ? 'hand' : 'lock';
+        reason = action === 'hand' ? 'the Board is sealed, so the risk goes private' : 'the Board is sealed';
+    }
     game.phase = PHASE.RESOLVING;
     seatState.lastAction = reason || action;
     render();
 
     if (action === 'board') {
-        setStatus(`<b>${seatState.name}</b> opens the shared board…`, true);
+        const stageName = nextBoardName();
+        if (!await resolveBoardWindow(seatState) || token !== game.roundToken) return;
+        setStatus(`The ${stageName} turns for every seat still riding…`, true);
         await sleep(reducedMotion() ? 10 : 360);
         if (token !== game.roundToken) return;
         game.shared.push(game.deck.draw());
         game.boardVersion += 1;
         game.pressureUsedAt = null;
-        seatState.lastAction = 'sent a card to everyone active';
+        seatState.lastAction = `REVEALED ${stageName.toUpperCase()} · stayed on the ride`;
         SFX.deal();
         const broken = breakActiveSeats();
         render();
@@ -739,6 +857,13 @@ function answerPressure(call) {
     resolve(call);
 }
 
+function answerBoard(ride) {
+    if (game.phase !== PHASE.BOARD_RESPOND || !game.boardResolve) return;
+    const resolve = game.boardResolve;
+    game.boardResolve = null;
+    resolve(ride);
+}
+
 async function finishHand() {
     if (game.phase === PHASE.OVER) return;
     const token = game.roundToken;
@@ -810,6 +935,7 @@ async function finishHand() {
     game.resultReady = true;
     el.result.classList.remove('hidden');
     el.result.setAttribute('aria-hidden', 'false');
+    el.result.removeAttribute('inert');
     // The overlay transitions visibility for 220 ms; focusing before it is
     // actually visible is ignored by browsers. Land focus after that handoff.
     setTimeout(() => el.againBtn.focus(), 260);
@@ -821,6 +947,7 @@ function readyNextHand() {
     game.phase = PHASE.BET;
     game.resultReady = false;
     el.shell.removeAttribute('inert');
+    el.result.setAttribute('inert', '');
     game.seats.forEach(seatState => {
         seatState.status = 'waiting';
         seatState.hand = [];
@@ -929,6 +1056,8 @@ el.lockBtn.addEventListener('click', () => game.phase === PHASE.PLAYER && takeAc
 el.pressureBtn.addEventListener('click', playerPressure);
 el.callBtn.addEventListener('click', () => answerPressure(true));
 el.foldBtn.addEventListener('click', () => answerPressure(false));
+el.rideBtn.addEventListener('click', () => answerBoard(true));
+el.boardLockBtn.addEventListener('click', () => answerBoard(false));
 el.againBtn.addEventListener('click', readyNextHand);
 el.rulesBtn.addEventListener('click', openRules);
 el.rulesClose.addEventListener('click', closeRules);
@@ -955,7 +1084,9 @@ document.addEventListener('keydown', event => {
         }
         return;
     }
-    if (key === 'b' && !el.boardBtn.disabled) takeAction(you(), 'board');
+    if (key === 'r' && game.phase === PHASE.BOARD_RESPOND) answerBoard(true);
+    else if (key === 'l' && game.phase === PHASE.BOARD_RESPOND) answerBoard(false);
+    else if (key === 'b' && !el.boardBtn.disabled) takeAction(you(), 'board');
     else if (key === 'h' && !el.handBtn.disabled) takeAction(you(), 'hand');
     else if (key === 'l' && !el.lockBtn.disabled) takeAction(you(), 'lock');
     else if (key === 'r' && !el.pressureBtn.disabled) playerPressure();

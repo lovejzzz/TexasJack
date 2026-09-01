@@ -2549,6 +2549,27 @@ kbd {
 .pressure-prompt b { font-size: 14px; }
 .pressure-pulse { width: 16px; height: 16px; flex: 0 0 auto; border: 3px solid #ff9b5d; border-radius: 50%; animation: pulseRing .85s ease-out infinite; }
 @keyframes pulseRing { to { transform: scale(1.8); opacity: 0; } }
+.board-prompt {
+    border-color: rgba(242,199,106,.48);
+    background: radial-gradient(circle at 8% 50%, rgba(242,199,106,.18), transparent 30%), linear-gradient(120deg, rgba(62,43,18,.72), rgba(8,20,15,.78));
+}
+.board-prompt small { color: var(--gold-hot); }
+.board-pulse {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+    border: 1px solid rgba(242,199,106,.68);
+    border-radius: 50%;
+    color: var(--gold-hot);
+    background: rgba(0,0,0,.24);
+    box-shadow: 0 0 22px rgba(242,199,106,.22);
+    animation: boardChoicePulse 1.4s ease-in-out infinite;
+}
+@keyframes boardChoicePulse { 50% { transform: scale(1.08); box-shadow: 0 0 30px rgba(242,199,106,.4); } }
+.ride-btn { box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 0 24px rgba(45,210,123,.13); }
+.board-lock-btn { box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 0 24px rgba(255,168,85,.12); }
 .response-panel .btn { min-height: 70px; }
 .response-panel .btn > b { color: #183d28; }
 .fold-btn { color: #ffe7e2; background: radial-gradient(80% 120% at 50% -30%, rgba(255,210,200,.36), transparent 58%), linear-gradient(180deg, #9b4b42, #632820); }

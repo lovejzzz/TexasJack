@@ -200,6 +200,42 @@
         };
     }
 
+    /**
+     * Decide whether a rival rides an announced shared card or locks before it
+     * is revealed. The decision only uses the visible total and board stage;
+     * callers never get to inspect the next card first.
+     */
+    function tableBoardDecision({
+        total, soft = false, profile = 'rock', stage = 2, roll = 0.5
+    }) {
+        const score = Number(total) || 0;
+        const finalBoard = Number(stage) >= 3;
+        const chance = Math.max(0, Math.min(0.9999, Number(roll) || 0));
+        let lockChance = 0;
+
+        if (score >= 21) lockChance = 1;
+        else if (score <= 15) lockChance = 0;
+        else if (profile === 'rock') {
+            lockChance = score >= 19 ? .96 : score === 18 ? .84 : finalBoard ? .66 : .54;
+        } else if (profile === 'shark') {
+            lockChance = score >= 20 ? .95 : score === 19 ? .78 : score === 18
+                ? (finalBoard ? .62 : .48) : finalBoard ? .32 : .20;
+        } else {
+            lockChance = score >= 20 ? .92 : score === 19 ? (finalBoard ? .68 : .52)
+                : score === 18 ? (finalBoard ? .42 : .28) : .10;
+        }
+
+        // A usable ace makes one more shared card materially safer.
+        if (soft && score < 21) lockChance = Math.max(0, lockChance - .18);
+        const lock = chance < lockChance;
+        return {
+            action: lock ? 'lock' : 'ride',
+            ride: !lock,
+            reason: lock ? 'protects the visible number' : finalBoard
+                ? 'rides the final reveal' : 'accepts one shared risk'
+        };
+    }
+
     function tableShowdown(seats) {
         const live = (seats || []).filter(seat =>
             seat && seat.status !== 'folded' && seat.status !== 'bust' && Number(seat.total) <= 21
@@ -315,6 +351,7 @@
         tablePressureCost,
         tableAiMove,
         tableCallDecision,
+        tableBoardDecision,
         tableShowdown,
         dealerMove,
         decisionInsight

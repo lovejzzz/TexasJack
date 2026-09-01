@@ -2,6 +2,7 @@ const rules = require('../rules.js');
 
 const ANTE = 100;
 const PRESSURE = rules.tablePressureCost(ANTE);
+const MAX_BOARD_CARDS = 3;
 const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', '10', '10', '10'];
 
 function rng(seed) {
@@ -46,12 +47,19 @@ function score(seat, shared) {
     return total([...seat.hand, ...counted(seat, shared)]);
 }
 
-function humanMove(policy, value, privateLeft) {
+function humanMove(policy, value, privateLeft, boardOpen) {
     const lockAt = policy === 'cautious' ? 18 : policy === 'board-attack' ? 19 : 17;
     if (value >= lockAt) return 'lock';
+    if (!boardOpen) return privateLeft > 0 ? 'hand' : 'lock';
     if (policy === 'board-attack') return value <= 14 || privateLeft === 0 ? 'board' : 'hand';
     if (value <= 11) return 'board';
     return privateLeft > 0 ? 'hand' : value <= 15 ? 'board' : 'lock';
+}
+
+function humanRides(policy, value, stage) {
+    const lockAt = policy === 'cautious' ? 18 : policy === 'board-attack' ? 20 : 19;
+    const finalAdjustment = stage >= 3 && policy !== 'board-attack' ? -1 : 0;
+    return value < lockAt + finalAdjustment;
 }
 
 function humanCalls(policy, value) {
@@ -78,6 +86,8 @@ function play(sourceDeck, random, policy, selectivePressure) {
     let folds = 0;
     let busts = 0;
     let multiBusts = 0;
+    let boardLocks = 0;
+    let rides = 0;
     let turns = 0;
 
     const eligible = seat => !['folded', 'bust'].includes(seat.status);
@@ -94,7 +104,7 @@ function play(sourceDeck, random, policy, selectivePressure) {
 
         const state = score(seat, shared);
         const move = seat.id === 'you'
-            ? { action: humanMove(policy, state.total, seat.privateLeft), pressure: selectivePressure && state.total >= 18 }
+            ? { action: humanMove(policy, state.total, seat.privateLeft, shared.length < MAX_BOARD_CARDS), pressure: selectivePressure && state.total >= 18 }
             : rules.tableAiMove({
                 total: state.total,
                 soft: state.soft,
@@ -140,6 +150,10 @@ function play(sourceDeck, random, policy, selectivePressure) {
             }
         }
 
+        if (move.action === 'board' && shared.length >= MAX_BOARD_CARDS) {
+            move.action = seat.privateLeft > 0 ? 'hand' : 'lock';
+        }
+
         if (move.action === 'lock') {
             seat.status = 'locked';
             seat.lockedAt = shared.length;
@@ -152,6 +166,26 @@ function play(sourceDeck, random, policy, selectivePressure) {
                 busts += 1;
             }
         } else {
+            const stage = shared.length + 1;
+            for (const target of seats) {
+                if (target === seat || !active(target)) continue;
+                const targetScore = score(target, shared);
+                const ride = target.id === 'you'
+                    ? humanRides(policy, targetScore.total, stage)
+                    : rules.tableBoardDecision({
+                        total: targetScore.total,
+                        soft: targetScore.soft,
+                        profile: target.profile,
+                        stage,
+                        roll: random()
+                    }).ride;
+                if (ride) rides += 1;
+                else {
+                    target.status = 'locked';
+                    target.lockedAt = shared.length;
+                    boardLocks += 1;
+                }
+            }
             shared.push(draw());
             boardVersion += 1;
             pressureUsedAt = null;
@@ -188,6 +222,8 @@ function play(sourceDeck, random, policy, selectivePressure) {
         folds,
         busts,
         multiBusts,
+        boardLocks,
+        rides,
         timedOut: turns >= 80
     };
 }
@@ -202,7 +238,7 @@ function run(hands, seed) {
     };
     const stats = Object.fromEntries(Object.keys(scenarios).map(key => [key, {
         hands, wins: 0, splits: 0, profit: 0, turns: 0, boardCards: 0,
-        pressures: 0, folds: 0, busts: 0, multiBusts: 0, timedOut: 0
+        pressures: 0, folds: 0, busts: 0, multiBusts: 0, boardLocks: 0, rides: 0, timedOut: 0
     }]));
 
     for (let i = 0; i < hands; i += 1) {
@@ -212,7 +248,7 @@ function run(hands, seed) {
             const target = stats[name];
             target.wins += Number(hand.userWon);
             target.splits += Number(hand.split);
-            for (const key of ['profit', 'turns', 'boardCards', 'pressures', 'folds', 'busts', 'multiBusts']) target[key] += hand[key];
+            for (const key of ['profit', 'turns', 'boardCards', 'pressures', 'folds', 'busts', 'multiBusts', 'boardLocks', 'rides']) target[key] += hand[key];
             target.timedOut += Number(hand.timedOut);
         }
     }
@@ -227,6 +263,8 @@ function run(hands, seed) {
         foldsPerHand: Number((value.folds / hands).toFixed(2)),
         bustsPerHand: Number((value.busts / hands).toFixed(2)),
         multiBustRate: `${(value.multiBusts / hands * 100).toFixed(2)}%`,
+        boardLocksPerHand: Number((value.boardLocks / hands).toFixed(2)),
+        ridesPerHand: Number((value.rides / hands).toFixed(2)),
         stalledHands: value.timedOut,
         profitPerAnte: Number((value.profit / hands / ANTE).toFixed(4))
     }]));

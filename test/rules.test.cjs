@@ -124,6 +124,15 @@ test('table Pressure has readable call ranges and a fixed half-ante price', () =
     assert.equal(rules.tableCallDecision({ total: 22, profile: 'spark', cost: 50, pot: 400, ante: 100 }).call, false);
 });
 
+test('Board response personalities choose fairly from visible information', () => {
+    assert.equal(rules.tableBoardDecision({ total: 15, profile: 'rock', stage: 3, roll: 0 }).action, 'ride');
+    assert.equal(rules.tableBoardDecision({ total: 21, profile: 'spark', stage: 2, roll: 0.99 }).action, 'lock');
+    assert.equal(rules.tableBoardDecision({ total: 18, profile: 'rock', stage: 2, roll: 0.5 }).action, 'lock');
+    assert.equal(rules.tableBoardDecision({ total: 17, profile: 'shark', stage: 2, roll: 0.5 }).action, 'ride');
+    assert.equal(rules.tableBoardDecision({ total: 18, profile: 'spark', stage: 3, roll: 0.2 }).action, 'lock');
+    assert.equal(rules.tableBoardDecision({ total: 18, soft: true, profile: 'spark', stage: 3, roll: 0.3 }).action, 'ride');
+});
+
 test('four-seat showdown excludes folded and busted seats and splits ties', () => {
     assert.deepEqual(rules.tableShowdown([
         { id: 'you', total: 20, status: 'locked' },
