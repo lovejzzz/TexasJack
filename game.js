@@ -4,7 +4,15 @@
    ========================================================================== */
 
 const { Deck, cardFaceSVG, cardBackSVG, handTotal } = window.TJCards;
-const { tableGoal, tableGoalComplete, pressOffer, dealerMove, decisionInsight } = window.TJRules;
+const {
+    tableGoal,
+    tableGoalComplete,
+    pressOffer,
+    pressureGain,
+    counterBounty,
+    dealerMove,
+    decisionInsight
+} = window.TJRules;
 
 /* ---- DOM ----------------------------------------------------------------- */
 
@@ -59,6 +67,7 @@ const el = {
     fx: $('fx'),
     dealerRead: $('dealerRead'),
     dealerCounter: $('dealerCounter'),
+    dealerPressure: $('dealerPressure'),
     boardBtn: $('boardBtn'),
     handBtn: $('handBtn'),
     handLeft: $('handLeft'),
@@ -135,6 +144,8 @@ const game = {
     challengeCompleted: false,
     dealerRevealed: false,
     dealerCounter: 1,
+    counterUsed: false,
+    pressure: 0,
     dealerIntent: null,
     hands: persisted.hands || 0,
     wins: persisted.wins || 0,
@@ -371,10 +382,15 @@ function updateTotals() {
     el.dealerRead.textContent = tell.text;
     el.dealerRead.className = 'lane-hint' + (tell.tone ? ' ' + tell.tone : '');
     el.dealerCounter.classList.toggle('spent', game.dealerCounter <= 0);
-    el.dealerCounter.textContent = game.dealerCounter > 0 ? 'Counter 1' : 'Counter 0';
-    el.dealerCounter.setAttribute('aria-label', game.dealerCounter > 0
-        ? 'Dealer counter available'
-        : 'Dealer counter spent');
+    el.dealerCounter.classList.toggle('locked', game.pressure <= 0);
+    el.dealerCounter.textContent = game.pressure <= 0
+        ? 'Counter locked'
+        : game.dealerCounter > 0 ? 'Counter 1' : 'Counter 0';
+    el.dealerCounter.setAttribute('aria-label', game.pressure <= 0
+        ? 'Dealer counter locked until the player presses'
+        : game.dealerCounter > 0 ? 'Dealer counter available' : 'Dealer counter spent');
+    el.dealerPressure.textContent = `Pressure ${game.pressure}`;
+    el.dealerPressure.dataset.level = game.pressure;
 }
 
 function updateShoe() {
@@ -534,6 +550,8 @@ async function startRound() {
     game.challengeCompleted = false;
     game.dealerRevealed = false;
     game.dealerCounter = 1;
+    game.counterUsed = false;
+    game.pressure = 0;
     game.dealerIntent = null;
     game.privateLeft = PRIVATE_DRAWS;
     game.challenge = tableGoal(game.mode, game.hands, game.ante);
@@ -718,13 +736,25 @@ function playerRaise() {
     game.bet += amount;
     game.pressTotal += amount;
     game.pressedAtDraw = game.drawsTaken;
+    const pressureBefore = game.pressure;
+    game.pressure = Math.min(3, game.pressure + pressureGain({
+        drawsTaken: game.drawsTaken,
+        scoutUsed: game.scoutUsed
+    }));
     game.moneyAction = 'raise';
     if (game.raisedAtDraw === null) game.raisedAtDraw = game.drawsTaken;
     SFX.chip();
     updateMoney();
     animateMoneyValue(el.bankroll, bankBefore, game.bankroll, 280);
     animateBetTransfer(el.raiseBtn, betBefore, game.bet);
-    setStatus(`Read backed — <b>${money(game.bet)}</b> in play. Draw a card to reopen Press.`);
+    updateTotals();
+    if (game.pressure > pressureBefore) {
+        laneOf.dealer.classList.remove('pressure-rise');
+        void laneOf.dealer.offsetWidth;
+        laneOf.dealer.classList.add('pressure-rise');
+        setTimeout(() => laneOf.dealer.classList.remove('pressure-rise'), 900);
+    }
+    setStatus(`Read backed — <b>${money(game.bet)}</b> in play. Dealer pressure <b>${game.pressure}/3</b>.`);
     syncControls();
 }
 
@@ -822,7 +852,8 @@ async function dealerPlay() {
             dealerTotal: d,
             playerTotal: p,
             soft: dealerState.soft,
-            pressureAvailable: game.dealerCounter > 0
+            pressureAvailable: game.dealerCounter > 0,
+            pressure: game.pressure
         });
 
         if (!move.draw) {
@@ -845,6 +876,7 @@ async function dealerPlay() {
 
         if (move.usesCounter) {
             game.dealerCounter = 0;
+            game.counterUsed = true;
             laneOf.dealer.classList.add('countering');
             setTimeout(() => laneOf.dealer.classList.remove('countering'), 1500);
             SFX.counter();
@@ -942,6 +974,8 @@ async function finish(outcome, message, { bust = false } = {}) {
         moneyAction: game.moneyAction,
         pressTotal: game.pressTotal,
         scoutUsed: game.scoutUsed,
+        pressure: game.pressure,
+        counterUsed: game.counterUsed,
         raisedAtDraw: game.raisedAtDraw,
         boardBrokeDealer: game.boardBrokeDealer,
         privateLeft: game.privateLeft
@@ -951,6 +985,16 @@ async function finish(outcome, message, { bust = false } = {}) {
     if (challengeWon) {
         payout += game.challenge.reward;
         detail += ` · table goal +${money(game.challenge.reward)}`;
+    }
+    const bounty = counterBounty({
+        ante: game.ante,
+        pressure: game.pressure,
+        counterUsed: game.counterUsed,
+        outcome
+    });
+    if (bounty > 0) {
+        payout += bounty;
+        detail += ` · Counter bounty +${money(bounty)}`;
     }
     const insight = decisionInsight({
         ...challengeState,

@@ -79,6 +79,20 @@
         };
     }
 
+    function pressureGain({ drawsTaken, scoutUsed }) {
+        return scoutUsed || Number(drawsTaken) >= 2 ? 2 : 1;
+    }
+
+    function counterBounty({ ante, pressure, counterUsed, outcome }) {
+        if (!counterUsed || outcome !== 'win') return 0;
+        const level = Math.max(0, Math.min(3, Number(pressure) || 0));
+        // Counter is the table's visible retaliation. Beating it needs a
+        // memorable upside large enough to reward selective conviction, while
+        // level-one probing and hands where Counter never fires earn nothing.
+        const rate = level >= 3 ? 1 : level >= 2 ? 0.50 : 0;
+        return Math.round((Number(ante) || 0) * rate);
+    }
+
     const rankWeights = [
         ['A', 4], ['2', 4], ['3', 4], ['4', 4], ['5', 4], ['6', 4],
         ['7', 4], ['8', 4], ['9', 4], ['10', 16]
@@ -99,18 +113,21 @@
     /**
      * A transparent showdown opponent. It never sees the next card: it only
      * compares the revealed scores and uses the public, full-shoe rank odds.
-     * Behind means chase, ahead means protect, and a tie is attacked only when
-     * one blind draw has positive win/loss utility.
+     * Behind means chase, ahead means protect, and maximum Pressure only risks
+     * a low tie when the public full-shoe odds are favorable or near-even.
      */
-    function dealerMove({ dealerTotal, playerTotal, soft = false, pressureAvailable = true }) {
+    function dealerMove({ dealerTotal, playerTotal, soft = false, pressureAvailable = true, pressure = 0 }) {
         const dealer = Number(dealerTotal) || 0;
         const player = Number(playerTotal) || 0;
+        const heat = Math.max(0, Math.min(3, Number(pressure) || 0));
         if (dealer > 21 || player > 21 || dealer === 21) {
             return { draw: false, intent: 'hold', edge: -1, usesCounter: false };
         }
         if (dealer < player) {
             if (dealer < 17) return { draw: true, intent: 'build', edge: 1, usesCounter: false };
-            return pressureAvailable
+            const gap = player - dealer;
+            const counterRange = [0, 2, 4, 21][heat];
+            return pressureAvailable && gap <= counterRange
                 ? { draw: true, intent: 'counter', edge: 1, usesCounter: true }
                 : { draw: false, intent: 'concede', edge: -1, usesCounter: false };
         }
@@ -126,13 +143,18 @@
             else if (next > player) wins += weight;
         }
         const edge = (wins - losses) / 52;
-        return edge > 0 && pressureAvailable
+        return heat >= 3 && edge > -0.08 && pressureAvailable
             ? { draw: true, intent: 'attack-tie', edge, usesCounter: true }
             : { draw: false, intent: 'hold-push', edge, usesCounter: false };
     }
 
     function decisionInsight(state) {
         if (state.challengeWon) return `Table goal cleared — ${state.challengeText}.`;
+        if (state.outcome === 'win' && state.counterUsed) {
+            return state.pressure >= 2
+                ? 'Your pressure woke the Counter — then made its failed chase pay a bounty.'
+                : 'The dealer countered your read, and you held the stronger line.';
+        }
         if (state.outcome === 'win' && state.boardBrokeDealer) {
             return 'Board read paid off — your shared card broke the dealer.';
         }
@@ -164,7 +186,15 @@
             : 'The line missed — use the dealer range to sharpen the next decision.';
     }
 
-    const api = { tableGoal, tableGoalComplete, pressOffer, dealerMove, decisionInsight };
+    const api = {
+        tableGoal,
+        tableGoalComplete,
+        pressOffer,
+        pressureGain,
+        counterBounty,
+        dealerMove,
+        decisionInsight
+    };
     if (typeof window !== 'undefined') window.TJRules = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 }());

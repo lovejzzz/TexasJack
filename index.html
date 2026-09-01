@@ -9,7 +9,7 @@
     <link rel="icon" type="image/png" href="asset/title.png">
     <link rel="preload" as="image" href="asset/Win.png">
     <link rel="preload" as="image" href="asset/Lose.png">
-    <link rel="stylesheet" href="styles.css?v=ai-counter-1">
+    <link rel="stylesheet" href="styles.css?v=pressure-ai-1">
 </head>
 <body>
 <div class="table">
@@ -57,7 +57,8 @@
                 <span class="lane-name">Dealer</span>
                 <span class="pill" id="dealerTotal" data-state="idle">—</span>
                 <span class="lane-hint" id="dealerRead">stands on 17</span>
-                <span class="dealer-counter" id="dealerCounter" title="One adaptive draw after 17">Counter 1</span>
+                <span class="dealer-pressure" id="dealerPressure" data-level="0">Pressure 0</span>
+                <span class="dealer-counter locked" id="dealerCounter" title="Pressing can unlock one adaptive draw">Counter locked</span>
             </div>
             <div class="cards" id="dealerCards" aria-live="polite"></div>
         </section>
@@ -217,9 +218,12 @@
             <li><strong>When you stand</strong>, the dealer reveals their hand and plays against
                 your final total instead of following a fixed script.</li>
             <li><strong>The dealer has one Counter.</strong> Once their hand is revealed, they
-                compare it with yours. If they reach 17 but still trail, they may spend Counter
-                for one extra blind draw. They never see the next card; ahead they protect the
-                lead, and on a tie they only attack when the public shoe odds favor the risk.</li>
+                compare it with yours. Pressing creates Pressure and unlocks a wider chase range:
+                Pressure 1 chases a 1–2 point gap, Pressure 2 up to 4, and Pressure 3 can chase
+                any gap or attack a low tie with close public odds. They never see the next card.</li>
+            <li><strong>Beat the Counter, earn its bounty.</strong> Winning after a Pressure 2
+                Counter adds 50% of the ante; at Pressure 3 the bounty is 100%. More conviction
+                wakes a smarter opponent, but makes its failed challenge worth more.</li>
             <li><strong>Press every new read.</strong> Each new card state opens one chance to
                 add to the live wager. Use it or draw again — that window expires.</li>
             <li><strong>One table goal per hand.</strong> Clear the optional tactical objective for
@@ -245,6 +249,7 @@
             <li><span>Push</span><b>bet returned</b></li>
             <li><span>Hot streak (3+ wins)</span><b>+25% bonus</b></li>
             <li><span>Table goal</span><b>+10% of ante</b></li>
+            <li><span>Counter bounty</span><b>+50% / +100% of ante</b></li>
             <li><span>Scout the shoe</span><b>costs a third of the ante</b></li>
         </ul>
         <h3>This session</h3>
@@ -270,8 +275,8 @@
 <canvas id="fx" aria-hidden="true"></canvas>
 
 <script src="cards.js"></script>
-<script src="audio.js?v=ai-counter-1"></script>
-<script src="rules.js?v=ai-counter-1"></script>
-<script src="game.js?v=ai-counter-1"></script>
+<script src="audio.js?v=pressure-ai-1"></script>
+<script src="rules.js?v=pressure-ai-1"></script>
+<script src="game.js?v=pressure-ai-1"></script>
 </body>
 </html>

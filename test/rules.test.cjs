@@ -81,13 +81,29 @@ test('a known scouted card freezes only its current press window', () => {
 
 test('dealer AI chases from behind, protects a lead, and values a push', () => {
     assert.equal(rules.dealerMove({ dealerTotal: 16, playerTotal: 19 }).intent, 'build');
-    assert.equal(rules.dealerMove({ dealerTotal: 18, playerTotal: 20 }).intent, 'counter');
-    assert.equal(rules.dealerMove({ dealerTotal: 18, playerTotal: 20, pressureAvailable: false }).intent, 'concede');
+    assert.equal(rules.dealerMove({ dealerTotal: 18, playerTotal: 20, pressure: 0 }).intent, 'concede');
+    assert.equal(rules.dealerMove({ dealerTotal: 18, playerTotal: 20, pressure: 1 }).intent, 'counter');
+    assert.equal(rules.dealerMove({ dealerTotal: 17, playerTotal: 21, pressure: 1 }).intent, 'concede');
+    assert.equal(rules.dealerMove({ dealerTotal: 17, playerTotal: 21, pressure: 2 }).intent, 'counter');
+    assert.equal(rules.dealerMove({ dealerTotal: 17, playerTotal: 21, pressure: 3 }).intent, 'counter');
+    assert.equal(rules.dealerMove({ dealerTotal: 18, playerTotal: 20, pressure: 3, pressureAvailable: false }).intent, 'concede');
     assert.equal(rules.dealerMove({ dealerTotal: 18, playerTotal: 17 }).intent, 'protect');
-    assert.equal(rules.dealerMove({ dealerTotal: 12, playerTotal: 12 }).intent, 'attack-tie');
-    assert.equal(rules.dealerMove({ dealerTotal: 12, playerTotal: 12, pressureAvailable: false }).intent, 'hold-push');
+    assert.equal(rules.dealerMove({ dealerTotal: 12, playerTotal: 12, pressure: 2 }).intent, 'hold-push');
+    assert.equal(rules.dealerMove({ dealerTotal: 12, playerTotal: 12, pressure: 3 }).intent, 'attack-tie');
     assert.equal(rules.dealerMove({ dealerTotal: 17, playerTotal: 17 }).intent, 'hold-push');
     assert.equal(rules.dealerMove({ dealerTotal: 21, playerTotal: 21 }).draw, false);
+});
+
+test('late conviction creates more pressure and Counter wins pay a bounty', () => {
+    assert.equal(rules.pressureGain({ drawsTaken: 0, scoutUsed: false }), 1);
+    assert.equal(rules.pressureGain({ drawsTaken: 1, scoutUsed: false }), 1);
+    assert.equal(rules.pressureGain({ drawsTaken: 2, scoutUsed: false }), 2);
+    assert.equal(rules.pressureGain({ drawsTaken: 1, scoutUsed: true }), 2);
+    assert.equal(rules.counterBounty({ ante: 100, pressure: 1, counterUsed: true, outcome: 'win' }), 0);
+    assert.equal(rules.counterBounty({ ante: 100, pressure: 2, counterUsed: true, outcome: 'win' }), 50);
+    assert.equal(rules.counterBounty({ ante: 100, pressure: 3, counterUsed: true, outcome: 'win' }), 100);
+    assert.equal(rules.counterBounty({ ante: 100, pressure: 3, counterUsed: true, outcome: 'lose' }), 0);
+    assert.equal(rules.counterBounty({ ante: 100, pressure: 3, counterUsed: false, outcome: 'win' }), 0);
 });
 
 test('round insight explains the decision that shaped the hand', () => {

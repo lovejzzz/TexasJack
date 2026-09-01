@@ -18,14 +18,17 @@ they'll draw. The murky middle is where the hand is actually played.
 
 At showdown the dealer plays against your final score rather than mindlessly
 stopping on 17. From behind they build toward your number; ahead they protect
-the lead. Each hand also gives them one visible **Counter**: after reaching 17,
-they may spend it on one extra blind draw to chase you, or attack a low tie when
-the full-shoe odds favor the risk. Once Counter is spent, it is gone for that
-hand.
+the lead. Pressing builds visible **Pressure** and unlocks one **Counter**:
+Pressure 1 lets the dealer chase a one- or two-point gap, Pressure 2 widens that
+range to four, and Pressure 3 can chase any gap or attack a low tie with close
+public odds. Once Counter is spent, it is gone for that hand.
 
 The dealer never peeks at the next card. Its decision uses only the revealed
-scores, soft-hand state, and public full-shoe rank odds, so the opponent feels
-responsive without cheating.
+scores, soft-hand state, Pressure, and public full-shoe rank odds, so the
+opponent feels responsive without cheating. If you beat a spent Counter,
+Pressure 2 pays a 50%-of-ante bounty and Pressure 3 pays 100%. This gives a
+selective strong read a real climax while making indiscriminate pressing wake a
+more dangerous opponent.
 
 ## Two variants
 
@@ -121,6 +124,8 @@ automatically reduced when the operating system requests less motion.
 | Push | Bet returned |
 | Hot streak (3+ wins running) | +25% bonus on the win |
 | Table goal | +10% of ante ($5 minimum) |
+| Beat a Counter at Pressure 2 | +50% of ante |
+| Beat a Counter at Pressure 3 | +100% of ante |
 
 Bust over 21 and you lose, even if the same community card breaks the dealer
 too — you went over first. Pushes happen when both hands finish level.
@@ -147,11 +152,18 @@ Run the zero-dependency card, shoe, table-goal, and decision-feedback tests with
 npm test
 ```
 
-Run the reproducible dealer balance harness (50,000 hands by default) with:
+Run the reproducible, paired-deck dealer balance harness (50,000 hands by
+default) with:
 
 ```bash
 npm run simulate:ai
 ```
+
+Every strategy receives the same shuffled shoe for each hand, so the report can
+attribute changed outcomes to Press, Pressure, and Counter rather than shuffle
+luck. It compares no Press, opening Press, selective 18+ reads, and pressing at
+every window, including wager, Counter frequency, busts, bounty, and profit per
+ante.
 
 ## How it's built
 
