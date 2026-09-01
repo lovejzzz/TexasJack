@@ -4,18 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0b2a1f">
-    <meta name="description" content="Texas Jack — Blackjack meets Texas Hold'em. Every card you draw might belong to the dealer too.">
+    <meta name="description" content="Texas Jack — Blackjack meets Texas Hold'em. Duel the dealer or face three distinct rivals at the four-seat table.">
     <title>Texas Jack</title>
     <link rel="icon" type="image/png" href="asset/title.png">
     <link rel="preload" as="image" href="asset/Win.png">
     <link rel="preload" as="image" href="asset/Lose.png">
-    <link rel="stylesheet" href="styles.css?v=pressure-ai-1">
+    <link rel="stylesheet" href="styles.css?v=four-seat-4">
 </head>
 <body>
 <div class="table">
 
     <header class="topbar">
         <img src="asset/title.png" alt="Texas Jack" class="brand">
+
+        <nav class="game-switch" aria-label="Game table">
+            <a href="index.html" aria-current="page">Quick Duel</a>
+            <a href="table.html">Four-Seat</a>
+        </nav>
 
         <div class="readouts">
             <div class="readout bankroll">
@@ -275,8 +280,8 @@
 <canvas id="fx" aria-hidden="true"></canvas>
 
 <script src="cards.js"></script>
-<script src="audio.js?v=pressure-ai-1"></script>
-<script src="rules.js?v=pressure-ai-1"></script>
-<script src="game.js?v=pressure-ai-1"></script>
+<script src="audio.js?v=four-seat-4"></script>
+<script src="rules.js?v=four-seat-4"></script>
+<script src="game.js?v=four-seat-4"></script>
 </body>
 </html>

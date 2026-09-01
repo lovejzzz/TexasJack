@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0b2a1f">
+    <meta name="description" content="Texas Jack Four-Seat — attack the shared board, read three rivals, and win the whole pot without going over 21.">
+    <title>Texas Jack — Four-Seat Table</title>
+    <link rel="icon" type="image/png" href="asset/title.png">
+    <link rel="preload" as="image" href="asset/Win.png">
+    <link rel="preload" as="image" href="asset/Lose.png">
+    <link rel="stylesheet" href="styles.css?v=four-seat-4">
+</head>
+<body class="table-mode">
+<div class="table table-arena">
+    <header class="topbar">
+        <img src="asset/title.png" alt="Texas Jack" class="brand">
+
+        <nav class="game-switch" aria-label="Game table">
+            <a href="index.html">Quick Duel</a>
+            <a href="table.html" aria-current="page">Four-Seat</a>
+        </nav>
+
+        <div class="readouts">
+            <div class="readout bankroll">
+                <span class="readout-label">Bankroll</span>
+                <span class="readout-value" id="bankroll">$1,000</span>
+            </div>
+            <div class="readout pot-readout">
+                <span class="readout-label">Table Pot</span>
+                <span class="readout-value" id="potValue">$0</span>
+            </div>
+            <div class="readout streak" id="streakBox">
+                <span class="readout-label">Table Wins</span>
+                <span class="readout-value" id="streak">0</span>
+            </div>
+        </div>
+
+        <div class="tools">
+            <button class="icon-btn rules-tool" id="rulesBtn" title="Four-seat rules (?)" aria-label="How to play four-seat">
+                <span class="tool-core" aria-hidden="true"><svg><use href="asset/ui-icons.svg#rules"></use></svg></span>
+                <span class="tool-label">Rules</span>
+            </button>
+            <button class="icon-btn" id="soundBtn" title="Sound (M)" aria-label="Toggle sound">
+                <span class="tool-core" aria-hidden="true">
+                    <svg class="sound-on"><use href="asset/ui-icons.svg#volume-on"></use></svg>
+                    <svg class="sound-off"><use href="asset/ui-icons.svg#volume-off"></use></svg>
+                </span>
+                <span class="tool-label" id="soundLabel">Sound on</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="felt ring-felt" id="felt">
+        <div class="felt-glow" aria-hidden="true"></div>
+
+        <section class="ring-seat rival-seat seat-rock" id="seat-rock" data-state="waiting" aria-label="Mara, The Rock">
+            <div class="rival-topline">
+                <span class="rival-avatar rock-avatar" aria-hidden="true">◆</span>
+                <span class="rival-identity"><b>Mara</b><small>The Rock</small></span>
+                <span class="seat-stack" id="stack-rock">$1,000</span>
+            </div>
+            <div class="rival-state">
+                <span class="seat-range" id="range-rock">—</span>
+                <span class="seat-status" id="status-rock">Locks value early</span>
+            </div>
+            <div class="rival-cards" id="cards-rock" aria-live="polite"></div>
+            <div class="turn-orbit" aria-hidden="true"></div>
+        </section>
+
+        <section class="ring-seat rival-seat seat-shark" id="seat-shark" data-state="waiting" aria-label="Vex, The Shark">
+            <div class="rival-topline">
+                <span class="rival-avatar shark-avatar" aria-hidden="true">▲</span>
+                <span class="rival-identity"><b>Vex</b><small>The Shark</small></span>
+                <span class="seat-stack" id="stack-shark">$1,000</span>
+            </div>
+            <div class="rival-state">
+                <span class="seat-range" id="range-shark">—</span>
+                <span class="seat-status" id="status-shark">Presses thin edges</span>
+            </div>
+            <div class="rival-cards" id="cards-shark" aria-live="polite"></div>
+            <div class="turn-orbit" aria-hidden="true"></div>
+        </section>
+
+        <section class="ring-seat rival-seat seat-spark" id="seat-spark" data-state="waiting" aria-label="Sol, The Spark">
+            <div class="rival-topline">
+                <span class="rival-avatar spark-avatar" aria-hidden="true">✦</span>
+                <span class="rival-identity"><b>Sol</b><small>The Spark</small></span>
+                <span class="seat-stack" id="stack-spark">$1,000</span>
+            </div>
+            <div class="rival-state">
+                <span class="seat-range" id="range-spark">—</span>
+                <span class="seat-status" id="status-spark">Attacks the board</span>
+            </div>
+            <div class="rival-cards" id="cards-spark" aria-live="polite"></div>
+            <div class="turn-orbit" aria-hidden="true"></div>
+        </section>
+
+        <section class="board-well" aria-label="Shared board">
+            <div class="board-kicker">
+                <span>Shared board</span>
+                <small>Only unlocked seats take the next card</small>
+            </div>
+            <div class="table-pot" id="tablePot" data-live="false">
+                <span>Pot</span><b id="centerPot">$0</b>
+            </div>
+            <div class="ring-cards board-cards" id="sharedCards" aria-live="polite"></div>
+            <div class="table-shoe" id="shoe" aria-hidden="true">
+                <div class="shoe-stack"></div><span id="shoeCount">52</span>
+            </div>
+        </section>
+
+        <section class="ring-seat human-seat" id="seat-you" data-state="waiting" aria-label="Your seat">
+            <div class="human-meta">
+                <span class="lane-name">You</span>
+                <span class="pill" id="playerTotal" data-state="idle">—</span>
+                <span class="private-count" id="privateCount">2 private draws</span>
+                <span class="seat-status" id="status-you">Choose an ante</span>
+            </div>
+            <div class="ring-cards human-cards" id="playerCards" aria-live="polite"></div>
+            <div class="turn-orbit" aria-hidden="true"></div>
+        </section>
+    </main>
+
+    <div class="status table-status" id="status" role="status">Choose an ante. Four seats pay in; one pot comes back.</div>
+
+    <footer class="table-dock">
+        <section class="ante-panel" id="antePanel" aria-label="Choose ante">
+            <div class="ante-copy"><span>Table stake</span><b id="anteLabel">Choose your ante</b></div>
+            <div class="ante-chips" id="anteChips">
+                <button class="chip" data-value="25" style="--chip:#3fa564;--chip-dark:#1f6b3d" aria-label="Ante 25">25</button>
+                <button class="chip selected" data-value="50" style="--chip:#d7a841;--chip-dark:#79551e" aria-label="Ante 50">50</button>
+                <button class="chip" data-value="100" style="--chip:#3b6fd4;--chip-dark:#22448a" aria-label="Ante 100">100</button>
+                <button class="chip" data-value="250" style="--chip:#8b5bd6;--chip-dark:#553288" aria-label="Ante 250">250</button>
+            </div>
+            <button class="btn btn-deal table-deal" id="dealBtn">
+                <span class="btn-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#deal"></use></svg></span>
+                <span class="btn-label" id="dealLabel">Take a seat</span><kbd>↵</kbd>
+            </button>
+        </section>
+
+        <section class="turn-panel" id="turnPanel" hidden>
+            <button class="pressure-action" id="pressureBtn" disabled>
+                <span class="pressure-mark" aria-hidden="true"><svg><use href="asset/ui-icons.svg#raise"></use></svg></span>
+                <span><small>Pressure the table</small><b>Raise <em id="pressureCost">$25</em></b></span>
+                <span class="pressure-note" id="pressureNote">One bet per board</span><kbd>R</kbd>
+            </button>
+            <div class="table-actions">
+                <button class="btn btn-board" id="boardBtn" disabled>
+                    <span class="btn-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#board"></use></svg></span>
+                    <span class="btn-copy"><span class="btn-label">Board</span><small>Risk everyone active</small></span><kbd>B</kbd>
+                </button>
+                <button class="btn btn-hand" id="handBtn" disabled>
+                    <span class="btn-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#hand"></use></svg></span>
+                    <span class="btn-copy"><span class="btn-label">Hand</span><small>Yours alone · <b id="handLeft">2</b> left</small></span><kbd>H</kbd>
+                </button>
+                <button class="btn btn-stand" id="lockBtn" disabled>
+                    <span class="btn-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#stand"></use></svg></span>
+                    <span class="btn-copy"><span class="btn-label">Lock</span><small>Freeze your total</small></span><kbd>L</kbd>
+                </button>
+            </div>
+        </section>
+
+        <section class="response-panel" id="responsePanel" hidden>
+            <div class="pressure-prompt">
+                <span class="pressure-pulse" aria-hidden="true"></span>
+                <span><small id="responseKicker">Vex raises</small><b id="responseText">Call $25 to stay in?</b></span>
+            </div>
+            <button class="btn btn-hit" id="callBtn"><span class="btn-label">Call</span><b id="callAmount">$25</b><kbd>C</kbd></button>
+            <button class="btn fold-btn" id="foldBtn"><span class="btn-label">Fold</span><small>Save the rest</small><kbd>F</kbd></button>
+        </section>
+    </footer>
+</div>
+
+<div id="tableResult" class="table-result hidden" role="status" aria-live="assertive" aria-hidden="true">
+    <div class="result-card">
+        <span class="result-eyebrow" id="resultEyebrow">Showdown</span>
+        <h2 id="resultTitle">You take the table</h2>
+        <div class="result-pot" id="resultPot">+$200</div>
+        <p id="resultDetail">Three rivals. One clean read.</p>
+        <button class="btn btn-deal" id="againBtn"><span class="btn-label">Play again</span><kbd>↵</kbd></button>
+    </div>
+</div>
+
+<div id="rulesModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+    <div class="modal-card table-rules-card">
+        <button class="modal-close" id="rulesClose" aria-label="Close">×</button>
+        <h2 id="rulesTitle">Four seats. One shared fuse.</h2>
+        <p class="lede">Everyone starts with a private card. Board cards help every seat that has not locked yet. Get close to 21, read three distinct rivals, and win the whole pot.</p>
+
+        <ol class="rules">
+            <li><strong>Ante.</strong> All four seats pay the same stake into one pot.</li>
+            <li><strong>Board.</strong> Draw one shared card. It counts for every active seat and can break several players at once.</li>
+            <li><strong>Hand.</strong> Take a private card that only helps or hurts you. You get two per hand.</li>
+            <li><strong>Lock.</strong> Freeze your current number. Future board cards cannot change it, but you still have to answer later bets.</li>
+            <li><strong>Pressure.</strong> Once per board state, any seat can raise half the ante. Call to stay in or fold the whole hand.</li>
+            <li><strong>Showdown.</strong> Highest total at or below 21 takes the pot. Ties split it.</li>
+        </ol>
+
+        <div class="rival-guide">
+            <article><span class="rival-avatar rock-avatar">◆</span><div><b>Mara · The Rock</b><p>Protects made hands and prefers private risk. A sudden call means weight.</p></div></article>
+            <article><span class="rival-avatar shark-avatar">▲</span><div><b>Vex · The Shark</b><p>Presses thin value and occasionally bluffs. Watch the bet, not the smile.</p></div></article>
+            <article><span class="rival-avatar spark-avatar">✦</span><div><b>Sol · The Spark</b><p>Feeds the shared board and hunts multi-bust chaos.</p></div></article>
+        </div>
+
+        <p class="shortcuts"><kbd>B</kbd> board · <kbd>H</kbd> hand · <kbd>L</kbd> lock · <kbd>R</kbd> pressure · <kbd>C</kbd> call · <kbd>F</kbd> fold</p>
+        <div class="modal-foot"><button class="btn btn-deal modal-cta" id="rulesGo"><span class="btn-label">Take a seat</span></button></div>
+    </div>
+</div>
+
+<canvas id="fx" aria-hidden="true"></canvas>
+<script src="cards.js"></script>
+<script src="audio.js?v=four-seat-4"></script>
+<script src="rules.js?v=four-seat-4"></script>
+<script src="table-game.js?v=four-seat-4"></script>
+</body>
+</html>

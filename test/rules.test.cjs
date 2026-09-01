@@ -106,6 +106,37 @@ test('late conviction creates more pressure and Counter wins pay a bounty', () =
     assert.equal(rules.counterBounty({ ante: 100, pressure: 3, counterUsed: false, outcome: 'win' }), 0);
 });
 
+test('four-seat personalities make distinct decisions without seeing the next card', () => {
+    assert.equal(rules.tableAiMove({ total: 18, privateLeft: 2, profile: 'rock' }).action, 'lock');
+    assert.equal(rules.tableAiMove({ total: 12, privateLeft: 2, profile: 'rock', roll: 0.9 }).action, 'hand');
+    assert.equal(rules.tableAiMove({ total: 15, privateLeft: 2, profile: 'shark' }).action, 'hand');
+    assert.equal(rules.tableAiMove({ total: 13, privateLeft: 2, profile: 'spark', roll: 0.9 }).action, 'board');
+    assert.equal(rules.tableAiMove({ total: 20, profile: 'rock', pressureOpen: true }).pressure, true);
+    assert.equal(rules.tableAiMove({ total: 13, profile: 'shark', pressureOpen: true, roll: 0.1 }).pressure, true);
+});
+
+test('table Pressure has readable call ranges and a fixed half-ante price', () => {
+    assert.equal(rules.tablePressureCost(100), 50);
+    assert.equal(rules.tablePressureCost(5), 5);
+    assert.equal(rules.tableCallDecision({ total: 19, profile: 'rock', cost: 50, pot: 400, ante: 100 }).call, true);
+    assert.equal(rules.tableCallDecision({ total: 16, profile: 'rock', cost: 50, pot: 400, ante: 100 }).call, false);
+    assert.equal(rules.tableCallDecision({ total: 16, profile: 'shark', cost: 50, pot: 400, ante: 100 }).call, true);
+    assert.equal(rules.tableCallDecision({ total: 22, profile: 'spark', cost: 50, pot: 400, ante: 100 }).call, false);
+});
+
+test('four-seat showdown excludes folded and busted seats and splits ties', () => {
+    assert.deepEqual(rules.tableShowdown([
+        { id: 'you', total: 20, status: 'locked' },
+        { id: 'rock', total: 22, status: 'bust' },
+        { id: 'shark', total: 20, status: 'locked' },
+        { id: 'spark', total: 21, status: 'folded' }
+    ]), { winningTotal: 20, winnerIds: ['you', 'shark'] });
+    assert.deepEqual(rules.tableShowdown([
+        { id: 'you', total: 24, status: 'bust' },
+        { id: 'rock', total: 23, status: 'bust' }
+    ]), { winningTotal: null, winnerIds: [] });
+});
+
 test('round insight explains the decision that shaped the hand', () => {
     assert.match(rules.decisionInsight({
         outcome: 'win', challengeWon: true, challengeText: 'Finish on exactly 21'

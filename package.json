@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "test": "node --test",
-    "simulate:ai": "node scripts/simulate-ai.cjs"
+    "simulate:ai": "node scripts/simulate-ai.cjs",
+    "simulate:table": "node scripts/simulate-table.cjs"
   }
 }

@@ -2,6 +2,8 @@
 
 **[Play it here →](https://lovejzzz.github.io/TexasJack/)**
 
+**[Enter the four-seat table →](https://lovejzzz.github.io/TexasJack/table.html)**
+
 Blackjack's race to 21, played on a Texas Hold'em board. You and the dealer each
 hold a private hand, but a row of **community cards** in the middle counts toward
 *both* totals — so the card you ask for might be the card that saves the dealer.
@@ -33,6 +35,31 @@ more dangerous opponent.
 ## Two variants
 
 Pick either one from the rules dialog (`?`). Your choice is remembered.
+
+## Four-seat table
+
+Four-Seat is a separate, faster table mode: you face three readable AI rivals
+while a neutral shoe deals the cards. All four seats ante into one pot, start
+with one private card, and share the centre board.
+
+On your turn you can send the next card to the **Board**, take one of two
+private **Hand** draws, or **Lock** your current total. Locking freezes the
+number: future board cards only affect seats that are still active. A single
+Board card can therefore save you, break two rivals at once, or leave a locked
+opponent untouched.
+
+Once per board state, any seat can apply **Pressure** for half the ante. Every
+remaining player must Call or Fold. A new Board card reopens the betting window.
+The highest live total at or below 21 wins the pot; ties split it.
+
+The rivals use public state and their own private cards but never peek at the
+shoe or another hand:
+
+| Rival | Personality |
+| --- | --- |
+| Mara · The Rock | Locks made value and prefers private risk |
+| Vex · The Shark | Presses thin edges and occasionally bluffs |
+| Sol · The Spark | Feeds the shared board and hunts multi-bust chaos |
 
 ### Dealer's Call — the original
 
@@ -165,18 +192,28 @@ luck. It compares no Press, opening Press, selective 18+ reads, and pressing at
 every window, including wager, Counter frequency, busts, bounty, and profit per
 ante.
 
+Run the four-seat personality, pacing, Pressure, fold, and multi-bust harness
+with:
+
+```bash
+npm run simulate:table
+```
+
 ## How it's built
 
 | File | What's in it |
 | --- | --- |
 | `index.html` | Table layout, rules dialog, result splash |
+| `table.html` | Compact four-seat ring, table controls, and rival guide |
 | `styles.css` | Felt, cards, chips, animations, responsive layout |
 | `cards.js` | The deck, and every card face drawn as inline SVG |
 | `audio.js` | All sound effects, synthesised with the Web Audio API |
 | `asset/ui-icons.svg` | Custom brass-table icons for tools, decisions, and actions |
 | `rules.js` | Pure table-goal, Press, dealer-AI, and decision-feedback rules |
 | `game.js` | Game state machine, dealing, betting, settlement |
+| `table-game.js` | Four-seat turn engine, AI betting, Lock, pot, and showdown |
 | `scripts/simulate-ai.cjs` | Seeded batch harness comparing fixed-17 and adaptive dealers |
+| `scripts/simulate-table.cjs` | Seeded four-seat pacing and strategy harness |
 
 Nothing is fetched at runtime. Card faces are generated as vectors rather than
 loaded as images, so they stay sharp at any size and the game plays offline.

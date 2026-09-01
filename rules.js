@@ -93,6 +93,125 @@
         return Math.round((Number(ante) || 0) * rate);
     }
 
+    const tableProfiles = {
+        rock: {
+            name: 'Mara', title: 'The Rock', glyph: '◆', tell: 'Locks value early'
+        },
+        shark: {
+            name: 'Vex', title: 'The Shark', glyph: '▲', tell: 'Presses thin edges'
+        },
+        spark: {
+            name: 'Sol', title: 'The Spark', glyph: '✦', tell: 'Attacks the board'
+        }
+    };
+
+    function tablePressureCost(ante) {
+        return Math.max(5, Math.round((Number(ante) || 0) * 0.50));
+    }
+
+    /**
+     * Personality-led table action. The roll is supplied by the caller so the
+     * rule stays reproducible in tests and simulations. No action sees the next
+     * card or another seat's private cards.
+     */
+    function tableAiMove({
+        total, soft = false, privateLeft = 0, profile = 'rock',
+        pressureOpen = false, roll = 0.5
+    }) {
+        const score = Number(total) || 0;
+        const hidden = Math.max(0, Number(privateLeft) || 0);
+        const chance = Math.max(0, Math.min(0.9999, Number(roll) || 0));
+        let action = 'lock';
+        let reason = 'protects the number';
+
+        if (score >= 21) {
+            action = 'lock';
+            reason = score === 21 ? 'snaps the lock on 21' : 'has no live line';
+        } else if (profile === 'rock') {
+            if (score >= 18) {
+                action = 'lock';
+                reason = 'banks a made hand';
+            } else if (score <= 11 && chance < 0.62) {
+                action = 'board';
+                reason = 'opens a low-risk board';
+            } else if (hidden > 0) {
+                action = 'hand';
+                reason = 'keeps the risk private';
+            } else {
+                action = score <= 15 ? 'board' : 'lock';
+                reason = action === 'board' ? 'needs the table' : 'refuses the thin draw';
+            }
+        } else if (profile === 'shark') {
+            if (score >= 19) {
+                action = 'lock';
+                reason = 'protects a premium line';
+            } else if (score <= 10) {
+                action = 'board';
+                reason = 'makes everyone sweat';
+            } else if (hidden > 0 && score <= 17) {
+                action = 'hand';
+                reason = 'sharpens the private edge';
+            } else {
+                action = score <= 16 ? 'board' : 'lock';
+                reason = action === 'board' ? 'forces one more decision' : 'takes the showdown';
+            }
+        } else {
+            if (score >= 20) {
+                action = 'lock';
+                reason = 'finally cools the table';
+            } else if (score <= 14 || hidden === 0) {
+                action = 'board';
+                reason = 'fires into the shared board';
+            } else if (chance < 0.58) {
+                action = 'board';
+                reason = 'chooses maximum table damage';
+            } else {
+                action = 'hand';
+                reason = 'takes a rare private route';
+            }
+        }
+
+        const pressure = !!pressureOpen && (
+            (profile === 'rock' && score >= 20)
+            || (profile === 'shark' && (score >= 18 || chance < 0.12))
+            || (profile === 'spark' && score >= 19 && chance < 0.72)
+        );
+
+        return { action, pressure, reason, soft: !!soft };
+    }
+
+    /** Decide whether an AI pays a table Pressure bet or folds its whole hand. */
+    function tableCallDecision({
+        total, soft = false, locked = false, profile = 'rock',
+        cost = 0, pot = 0, ante = 1, roll = 0.5
+    }) {
+        const score = Number(total) || 0;
+        if (score > 21) return { call: false, reason: 'already broken' };
+        const ratio = Math.max(0, Number(cost) || 0) / Math.max(1, Number(pot) || 0);
+        const expensive = ratio > 0.22 ? 1 : 0;
+        const base = profile === 'rock' ? 18 : profile === 'shark' ? 16 : 17;
+        const threshold = base + expensive - (locked ? 1 : 0);
+        const made = score + (soft ? 0.35 : 0) >= threshold;
+        const bluffCatch = profile === 'shark' && Number(roll) < 0.16
+            && Number(cost) <= Math.max(Number(ante) || 0, 1);
+        return {
+            call: made || bluffCatch,
+            reason: made ? 'calls with a live number' : bluffCatch ? 'sniffs out the pressure' : 'lets the hand go'
+        };
+    }
+
+    function tableShowdown(seats) {
+        const live = (seats || []).filter(seat =>
+            seat && seat.status !== 'folded' && seat.status !== 'bust' && Number(seat.total) <= 21
+        );
+        if (!live.length) return { winningTotal: null, winnerIds: [] };
+        const winningTotal = Math.max(...live.map(seat => Number(seat.total) || 0));
+        return {
+            winningTotal,
+            winnerIds: live.filter(seat => Number(seat.total) === winningTotal).map(seat => seat.id)
+        };
+    }
+
     const rankWeights = [
         ['A', 4], ['2', 4], ['3', 4], ['4', 4], ['5', 4], ['6', 4],
         ['7', 4], ['8', 4], ['9', 4], ['10', 16]
@@ -192,6 +311,11 @@
         pressOffer,
         pressureGain,
         counterBounty,
+        tableProfiles,
+        tablePressureCost,
+        tableAiMove,
+        tableCallDecision,
+        tableShowdown,
         dealerMove,
         decisionInsight
     };
