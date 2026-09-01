@@ -72,6 +72,8 @@ const PHASE = {
 };
 const START_BANK = 1000;
 const REBUY = 500;
+const MIN_ANTE = 25;
+const ANTE_OPTIONS = [25, 50, 100, 250];
 const PRIVATE_DRAWS = 2;
 const UNKNOWN_RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'A'];
 
@@ -118,7 +120,7 @@ const game = {
     ],
     shared: [],
     phase: PHASE.BET,
-    ante: [25, 50, 100, 250].includes(tableSave.ante) ? tableSave.ante : 50,
+    ante: ANTE_OPTIONS.includes(tableSave.ante) ? tableSave.ante : 50,
     pot: 0,
     turn: 0,
     boardVersion: 0,
@@ -128,7 +130,8 @@ const game = {
     roundToken: 0,
     handNumber: Number(tableSave.hands) || 0,
     wins: Number(tableSave.wins) || 0,
-    revealAll: false
+    revealAll: false,
+    resultReady: false
 };
 
 const you = () => game.seats[0];
@@ -175,6 +178,7 @@ function cardNode(card, concealed = false, className = '') {
     const node = document.createElement('div');
     node.className = `ring-card ${className}`.trim();
     node.dataset.cid = card.id;
+    node.dataset.side = concealed ? 'back' : 'face';
     node.innerHTML = concealed ? cardBackSVG() : cardFaceSVG(card);
     node.setAttribute('role', 'img');
     node.setAttribute('aria-label', concealed ? 'Face-down private card' : accessibleCardName(card));
@@ -200,10 +204,38 @@ function hiddenRange(seatState) {
 }
 
 function renderCards(container, cards, concealed, compact = false) {
-    container.innerHTML = '';
+    const existing = new Map(
+        [...container.children].map(node => [node.dataset.cid, node])
+    );
+    const wanted = new Set(cards.map(card => String(card.id)));
+
     cards.forEach((card, index) => {
-        const node = cardNode(card, concealed, `${compact ? 'compact-card ' : ''}${index === cards.length - 1 ? 'latest-card' : ''}`);
-        container.appendChild(node);
+        const key = String(card.id);
+        let node = existing.get(key);
+        const isNew = !node;
+
+        if (!node) node = cardNode(card, concealed, compact ? 'compact-card' : '');
+
+        const side = concealed ? 'back' : 'face';
+        if (node.dataset.side !== side) {
+            node.dataset.side = side;
+            node.innerHTML = concealed ? cardBackSVG() : cardFaceSVG(card);
+            node.setAttribute('aria-label', concealed ? 'Face-down private card' : accessibleCardName(card));
+            node.querySelector('svg')?.setAttribute('aria-hidden', 'true');
+        }
+        node.classList.toggle('compact-card', compact);
+
+        const currentAtIndex = container.children[index];
+        if (currentAtIndex !== node) container.insertBefore(node, currentAtIndex || null);
+
+        if (isNew) {
+            node.classList.add('latest-card');
+            node.addEventListener('animationend', () => node.classList.remove('latest-card'), { once: true });
+        }
+    });
+
+    [...container.children].forEach(node => {
+        if (!wanted.has(node.dataset.cid)) node.remove();
     });
 }
 
@@ -225,8 +257,6 @@ function renderSeat(seatState) {
         const cardsNode = $(`cards-${seatState.id}`);
         $(`stack-${seatState.id}`).textContent = money(seatState.stack);
         root.dataset.state = seatState.status;
-        root.classList.toggle('is-turn', game.turn === game.seats.indexOf(seatState)
-            && [PHASE.AI, PHASE.RESOLVING].includes(game.phase));
 
         if (game.revealAll || seatState.revealed) {
             const value = totalOf(seatState).total;
@@ -257,6 +287,12 @@ function pressureAvailable() {
 
 function renderControls() {
     const betting = game.phase === PHASE.BET;
+    const needsRebuy = you().stack < MIN_ANTE;
+    const availableStack = needsRebuy ? REBUY : you().stack;
+    if (betting && !needsRebuy && game.ante > availableStack) {
+        const affordable = ANTE_OPTIONS.filter(amount => amount <= availableStack);
+        game.ante = affordable[affordable.length - 1] || MIN_ANTE;
+    }
     el.antePanel.hidden = !betting;
     el.turnPanel.hidden = betting || game.phase === PHASE.RESPOND || game.phase === PHASE.OVER;
     el.responsePanel.hidden = game.phase !== PHASE.RESPOND;
@@ -264,13 +300,13 @@ function renderControls() {
     el.anteChips.querySelectorAll('.chip').forEach(chip => {
         const amount = Number(chip.dataset.value);
         chip.classList.toggle('selected', amount === game.ante);
-        chip.disabled = !betting || amount > you().stack;
+        chip.disabled = !betting || amount > availableStack;
     });
-    el.anteLabel.textContent = you().stack === 0
+    el.anteLabel.textContent = needsRebuy
         ? 'The rail will stake a $500 rebuy'
         : `${money(game.ante)} each · ${money(game.ante * 4)} opening pot`;
-    el.dealLabel.textContent = you().stack === 0 ? 'Rebuy & sit' : 'Take a seat';
-    el.dealBtn.disabled = !betting || (you().stack > 0 && game.ante > you().stack);
+    el.dealLabel.textContent = needsRebuy ? 'Rebuy & sit' : 'Take a seat';
+    el.dealBtn.disabled = !betting || game.ante > availableStack;
 
     const yourTurn = game.phase === PHASE.PLAYER;
     el.boardBtn.disabled = !yourTurn;
@@ -312,11 +348,11 @@ function render() {
     el.felt.classList.toggle('is-idle-table', game.phase === PHASE.BET);
     el.felt.classList.toggle('has-board-cards', game.shared.length > 0);
     el.shoeCount.textContent = game.deck.remaining;
-    el.felt.querySelectorAll('.ring-seat').forEach(node => node.classList.remove('is-turn'));
     const current = game.seats[game.turn];
-    if (current && [PHASE.PLAYER, PHASE.AI, PHASE.RESOLVING].includes(game.phase)) {
-        $(`seat-${current.id}`)?.classList.add('is-turn');
-    }
+    const showTurn = current && [PHASE.PLAYER, PHASE.AI, PHASE.RESOLVING].includes(game.phase);
+    el.felt.querySelectorAll('.ring-seat').forEach(node => {
+        node.classList.toggle('is-turn', Boolean(showTurn && node.id === `seat-${current.id}`));
+    });
     renderControls();
 }
 
@@ -422,8 +458,8 @@ function resetSeat(seatState) {
 
 async function startHand() {
     if (game.phase !== PHASE.BET) return;
-    if (you().stack === 0) {
-        you().stack += REBUY;
+    if (you().stack < MIN_ANTE) {
+        you().stack = REBUY;
         persist();
         flashSeat(you(), 'seat-paid');
     }
@@ -441,6 +477,7 @@ async function startHand() {
     game.pressureUsedAt = null;
     game.pendingResponse = null;
     game.revealAll = false;
+    game.resultReady = false;
     game.deck = new Deck();
     el.result.classList.add('hidden');
     el.result.setAttribute('aria-hidden', 'true');
@@ -697,7 +734,9 @@ function answerPressure(call) {
 
 async function finishHand() {
     if (game.phase === PHASE.OVER) return;
+    const token = game.roundToken;
     game.phase = PHASE.OVER;
+    game.resultReady = false;
     el.shell.setAttribute('inert', '');
     game.revealAll = true;
     const outcomes = game.seats.map(seatState => ({
@@ -760,15 +799,18 @@ async function finishHand() {
 
     setStatus(winners.length ? `${winnerNames.join(' & ')} ${winners.length === 1 ? 'wins' : 'win'} the ${money(fullPot)} pot.` : 'Every seat broke.');
     await sleep(reducedMotion() ? 10 : 700);
+    if (token !== game.roundToken || game.phase !== PHASE.OVER) return;
+    game.resultReady = true;
     el.result.classList.remove('hidden');
     el.result.setAttribute('aria-hidden', 'false');
     requestAnimationFrame(() => el.againBtn.focus());
 }
 
 function readyNextHand() {
-    if (game.phase !== PHASE.OVER) return;
+    if (game.phase !== PHASE.OVER || !game.resultReady) return;
     game.roundToken += 1;
     game.phase = PHASE.BET;
+    game.resultReady = false;
     el.shell.removeAttribute('inert');
     game.seats.forEach(seatState => {
         seatState.status = 'waiting';
