@@ -11,7 +11,7 @@
         },
         private_reserve: {
             id: 'private_reserve',
-            text: 'Win with a private draw still in reserve'
+            text: 'Win without a private draw'
         },
         exact21: {
             id: 'exact21',
@@ -40,7 +40,8 @@
         }
         if (goal.id === 'board_break') return !!state.boardBrokeDealer;
         if (goal.id === 'private_reserve') {
-            return state.mode === 'routed' && state.privateLeft >= 1;
+            // Winning alone was nearly automatic; winning off the board is a line.
+            return state.mode === 'routed' && state.privateLeft >= 2;
         }
         if (goal.id === 'exact21') return state.playerTotal === 21;
         return false;
@@ -87,9 +88,10 @@
         if (!counterUsed || outcome !== 'win') return 0;
         const level = Math.max(0, Math.min(3, Number(pressure) || 0));
         // Counter is the table's visible retaliation. Beating it needs a
-        // memorable upside large enough to reward selective conviction, while
-        // level-one probing and hands where Counter never fires earn nothing.
-        const rate = level >= 3 ? 1 : level >= 2 ? 0.50 : 0;
+        // memorable upside large enough to reward selective conviction. Every
+        // level pays something so a well-timed press is never a pure tax;
+        // hands where Counter never fires earn nothing.
+        const rate = level >= 3 ? 1 : level >= 2 ? 0.60 : level >= 1 ? 0.30 : 0;
         return Math.round((Number(ante) || 0) * rate);
     }
 

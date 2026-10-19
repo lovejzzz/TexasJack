@@ -66,14 +66,14 @@
 
     function cardFaceSVG(card) {
         const suit = SUITS.find(s => s.key === card.suit);
-        const ink = suit.red ? '#c8102e' : '#1b1b1f';
+        const ink = suit.red ? '#a3271d' : '#1d1915';
         const rank = card.rank;
         let body = '';
 
         if (rank === 'A') {
             body = `
-          <circle cx="120" cy="168" r="72" fill="none" stroke="#b98f3e" stroke-width="2" opacity=".55"/>
-          <circle cx="120" cy="168" r="62" fill="none" stroke="#b98f3e" stroke-width="1" opacity=".35"/>
+          <circle cx="120" cy="168" r="72" fill="none" stroke="#9a7436" stroke-width="2" opacity=".55"/>
+          <circle cx="120" cy="168" r="62" fill="none" stroke="#9a7436" stroke-width="1" opacity=".35"/>
           ${suitAt(card.suit, 120, 168, 96)}`;
         } else if (rank === 'J' || rank === 'Q' || rank === 'K') {
             body = courtPanel(rank, card.suit);
@@ -95,21 +95,21 @@
          aria-label="${rank} of ${suit.name}">
       <defs>
         <linearGradient id="cf-${card.id}" x1="0" y1="0" x2=".6" y2="1">
-          <stop offset="0%" stop-color="#fffefb"/><stop offset="55%" stop-color="#fdfaf3"/><stop offset="100%" stop-color="#f2ece0"/>
+          <stop offset="0%" stop-color="#fbf5e8"/><stop offset="55%" stop-color="#f4ead6"/><stop offset="100%" stop-color="#e6d8bd"/>
         </linearGradient>
       </defs>
       <rect x="0" y="0" width="${CARD_W}" height="${CARD_H}" rx="18" fill="url(#cf-${card.id})"/>
       <rect x="5" y="5" width="${CARD_W - 10}" height="${CARD_H - 10}" rx="14"
-            fill="none" stroke="rgba(20,16,10,.10)" stroke-width="1.5"/>
+            fill="none" stroke="rgba(120,88,40,.28)" stroke-width="1.2"/>
       <g fill="${ink}">
         <g class="corner">
           <text x="26" y="52" font-size="44" font-weight="700" text-anchor="middle"
-                font-family="Georgia, 'Times New Roman', serif" letter-spacing="-1">${rank}</text>
+                font-family="'Playfair Display', Georgia, serif" letter-spacing="-1">${rank}</text>
           ${suitMark(card.suit, 14, 62, 25)}
         </g>
         <g class="corner" transform="rotate(180 120 168)">
           <text x="26" y="52" font-size="44" font-weight="700" text-anchor="middle"
-                font-family="Georgia, 'Times New Roman', serif" letter-spacing="-1">${rank}</text>
+                font-family="'Playfair Display', Georgia, serif" letter-spacing="-1">${rank}</text>
           ${suitMark(card.suit, 14, 62, 25)}
         </g>
         ${body}
@@ -136,43 +136,56 @@
         }[rank];
 
         return `
-        <rect x="34" y="58" width="172" height="220" rx="12" fill="rgba(255,255,255,.5)"
-              stroke="#b98f3e" stroke-width="2"/>
+        <rect x="34" y="58" width="172" height="220" rx="12" fill="rgba(255,250,238,.45)"
+              stroke="#9a7436" stroke-width="2"/>
         <rect x="41" y="65" width="158" height="206" rx="8" fill="none"
-              stroke="#b98f3e" stroke-width="1" opacity=".45"/>
+              stroke="#9a7436" stroke-width="1" opacity=".45"/>
         <g opacity=".07">${suitAt(suitKey, 120, 168, 150)}</g>
-        <g fill="#b98f3e">${crest}</g>
-        <g fill="#b98f3e" transform="rotate(180 120 168)">${crest}</g>
+        <g fill="#9a7436">${crest}</g>
+        <g fill="#9a7436" transform="rotate(180 120 168)">${crest}</g>
         <text x="120" y="200" font-size="96" font-weight="700" text-anchor="middle"
-              font-family="Georgia, 'Times New Roman', serif">${rank}</text>
+              font-family="'Playfair Display', Georgia, serif">${rank}</text>
         ${suitAt(suitKey, 64, 168, 34)}
         ${suitAt(suitKey, 176, 168, 34, true)}`;
     }
 
     /* ---- Card back ----------------------------------------------------------- */
 
+    let BACK_SEQ = 0;
     function cardBackSVG() {
+        // Unique ids per back: duplicated SVG ids across many cards can make
+        // some browsers paint every back from the first one's defs.
+        const u = ++BACK_SEQ;
         return `
     <svg class="card-svg" viewBox="0 0 ${CARD_W} ${CARD_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <defs>
-        <linearGradient id="cb-grad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#8f1524"/><stop offset="50%" stop-color="#6d0f1b"/><stop offset="100%" stop-color="#4a0912"/>
+        <linearGradient id="cb-grad-${u}" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#3a1712"/><stop offset="55%" stop-color="#22100c"/><stop offset="100%" stop-color="#140906"/>
         </linearGradient>
-        <pattern id="cb-lattice" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <path d="M12 0 V24 M0 12 H24" stroke="rgba(255,215,140,.22)" stroke-width="1.4"/>
-          <circle cx="12" cy="12" r="2.6" fill="rgba(255,215,140,.28)"/>
+        <pattern id="cb-tool-${u}" width="20" height="20" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <path d="M10 0 V20 M0 10 H20" stroke="rgba(201,160,99,.13)" stroke-width="1"/>
+          <circle cx="10" cy="10" r="1.6" fill="rgba(201,160,99,.22)"/>
         </pattern>
+        <radialGradient id="cb-star-${u}" cx=".4" cy=".3" r=".8">
+          <stop offset="0%" stop-color="#f3dda8"/><stop offset="60%" stop-color="#c9a063"/><stop offset="100%" stop-color="#7d5e30"/>
+        </radialGradient>
       </defs>
-      <rect width="${CARD_W}" height="${CARD_H}" rx="18" fill="#fdfaf3"/>
-      <rect x="7" y="7" width="${CARD_W - 14}" height="${CARD_H - 14}" rx="13" fill="url(#cb-grad)"/>
-      <rect x="7" y="7" width="${CARD_W - 14}" height="${CARD_H - 14}" rx="13" fill="url(#cb-lattice)"/>
-      <rect x="18" y="18" width="${CARD_W - 36}" height="${CARD_H - 36}" rx="9"
-            fill="none" stroke="rgba(255,215,140,.55)" stroke-width="2"/>
+      <rect width="${CARD_W}" height="${CARD_H}" rx="18" fill="#efe4cf"/>
+      <rect x="7" y="7" width="${CARD_W - 14}" height="${CARD_H - 14}" rx="13" fill="url(#cb-grad-${u})"/>
+      <rect x="7" y="7" width="${CARD_W - 14}" height="${CARD_H - 14}" rx="13" fill="url(#cb-tool-${u})"/>
+      <rect x="17" y="17" width="${CARD_W - 34}" height="${CARD_H - 34}" rx="9"
+            fill="none" stroke="rgba(201,160,99,.7)" stroke-width="1.5"/>
+      <rect x="22" y="22" width="${CARD_W - 44}" height="${CARD_H - 44}" rx="6"
+            fill="none" stroke="rgba(201,160,99,.4)" stroke-width="1" stroke-dasharray="3 3"/>
       <g transform="translate(120 168)">
-        <circle r="52" fill="rgba(20,4,8,.45)" stroke="rgba(255,215,140,.7)" stroke-width="2"/>
-        <circle r="43" fill="none" stroke="rgba(255,215,140,.35)" stroke-width="1"/>
-        <text y="14" font-size="42" font-weight="700" text-anchor="middle"
-              font-family="Georgia, 'Times New Roman', serif" fill="rgba(255,215,140,.92)" letter-spacing="1">TJ</text>
+        <circle r="56" fill="#160a07" stroke="rgba(201,160,99,.75)" stroke-width="2"/>
+        <circle r="49" fill="none" stroke="rgba(201,160,99,.35)" stroke-width="1"/>
+        <path d="M0 -40 L9.4 -13 L38 -12.4 L15.2 4.9 L23.5 32.4 L0 16 L-23.5 32.4 L-15.2 4.9 L-38 -12.4 L-9.4 -13 Z" fill="url(#cb-star-${u})" stroke="#5a4020" stroke-width="1.2"/>
+        <circle cx="0" cy="-40" r="3.4" fill="#e3c584"/><circle cx="38" cy="-12.4" r="3.4" fill="#e3c584"/>
+        <circle cx="23.5" cy="32.4" r="3.4" fill="#e3c584"/><circle cx="-23.5" cy="32.4" r="3.4" fill="#e3c584"/>
+        <circle cx="-38" cy="-12.4" r="3.4" fill="#e3c584"/>
+        <text y="7" font-size="17" font-weight="700" text-anchor="middle" letter-spacing="1"
+              font-family="'Playfair Display', Georgia, serif" fill="#2a170c">TJ</text>
       </g>
     </svg>`;
     }

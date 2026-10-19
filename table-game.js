@@ -149,12 +149,20 @@ const game = {
     handNumber: savedCount(tableSave.hands),
     wins: Math.min(savedCount(tableSave.hands), savedCount(tableSave.wins)),
     revealAll: false,
-    resultReady: false
+    resultReady: false,
+    carry: savedCount(tableSave.carry)
 };
 
 const you = () => game.seats[0];
 const eligible = seatState => !['folded', 'bust', 'waiting'].includes(seatState.status);
 const active = seatState => seatState.status === 'active';
+
+// Once you are out of the live action the table plays faster, so a
+// locked, folded or broken seat isn't left waiting through every AI beat.
+function pace(ms) {
+    if (reducedMotion()) return 10;
+    return game.phase !== PHASE.BET && you().status !== 'active' ? Math.round(ms * .45) : ms;
+}
 
 function persist() {
     const sharedSave = readJson('tj.save');
@@ -166,6 +174,7 @@ function persist() {
         ante: game.ante,
         hands: game.handNumber,
         wins: game.wins,
+        carry: game.carry,
         stacks: Object.fromEntries(game.seats.slice(1).map(item => [item.id, item.stack]))
     });
 }
@@ -374,9 +383,13 @@ function renderControls() {
     if (game.phase === PHASE.RESPOND && game.pendingResponse) {
         const { aggressor, cost: responseCost } = game.pendingResponse;
         el.responseKicker.textContent = `${aggressor.name} applies Pressure`;
-        el.responseText.textContent = `Call ${money(responseCost)} to stay in?`;
-        el.callAmount.textContent = money(responseCost);
-        el.callBtn.disabled = you().stack < responseCost;
+        // A short stack can still call all-in rather than fold a made hand.
+        const callCost = Math.min(responseCost, you().stack);
+        el.responseText.textContent = callCost < responseCost
+            ? `Call all-in for ${money(callCost)}?`
+            : `Call ${money(responseCost)} to stay in?`;
+        el.callAmount.textContent = money(callCost);
+        el.callBtn.disabled = callCost <= 0;
     }
 
     if (game.phase === PHASE.BOARD_RESPOND && game.pendingBoard) {
@@ -497,10 +510,9 @@ function commit(seatState, amount) {
     SFX.chip();
     flyChip(seatState);
     renderMoney();
-    // A live hand is transactional. Persisting each ante/call without also
-    // restoring the round made a refresh permanently lose chips. Settlement
-    // commits the complete hand atomically; a mid-hand reload returns to the
-    // last finished table state.
+    // Chips in the pot are spent. Persisting every commit means a reload
+    // forfeits the live hand instead of refunding the antes and calls.
+    persist();
     return paid;
 }
 
@@ -548,20 +560,26 @@ async function startHand() {
         resetSeat(seatState);
         commit(seatState, game.ante);
     });
+    const carried = game.carry;
+    game.pot += carried;
+    game.carry = 0;
+    persist();
     render();
-    setStatus(`Four antes hit the felt — <b>${money(game.pot)}</b> is live.`, true);
+    setStatus(carried
+        ? `Four antes join a <b>${money(carried)}</b> rollover — <b>${money(game.pot)}</b> is live.`
+        : `Four antes hit the felt — <b>${money(game.pot)}</b> is live.`, true);
 
     for (const seatState of game.seats) {
         if (token !== game.roundToken) return;
         seatState.hand.push(game.deck.draw());
         SFX.deal();
         render();
-        await sleep(reducedMotion() ? 10 : 150);
+        await sleep(pace(150));
     }
     game.shared.push(game.deck.draw());
     SFX.flip();
     render();
-    await sleep(reducedMotion() ? 10 : 360);
+    await sleep(pace(360));
 
     game.turn = 0;
     game.phase = PHASE.PLAYER;
@@ -599,30 +617,25 @@ async function resolveBoardWindow(initiator) {
     flashSeat(initiator, 'seat-called');
     render();
     setStatus(`<b>${initiator.name}</b> calls the ${stageName}. The table must Ride or Lock.`);
-    await sleep(reducedMotion() ? 10 : 420);
+    await sleep(pace(420));
 
-    for (const target of game.seats.slice(1)) {
-        if (token !== game.roundToken || target === initiator || !active(target)) continue;
-        const state = totalOf(target);
-        const decision = tableBoardDecision({
-            total: state.total,
-            soft: state.soft,
-            profile: target.profile,
-            stage: stageNumber,
-            roll: Math.random()
+    // Rivals decide blind at the same moment you do. Their choices are made
+    // first but only shown after you answer, so you never ride on their tells.
+    const choices = game.seats.slice(1)
+        .filter(target => target !== initiator && active(target))
+        .map(target => {
+            const state = totalOf(target);
+            return {
+                target,
+                decision: tableBoardDecision({
+                    total: state.total,
+                    soft: state.soft,
+                    profile: target.profile,
+                    stage: stageNumber,
+                    roll: Math.random()
+                })
+            };
         });
-        if (decision.ride) {
-            target.lastAction = `RIDES ${stageName.toUpperCase()} · ${decision.reason}`;
-            flashSeat(target, 'seat-called');
-        } else {
-            target.status = 'locked';
-            target.lockedAt = game.shared.length;
-            target.lastAction = `LOCKED BEFORE ${stageName.toUpperCase()} · ${decision.reason}`;
-            flashSeat(target, 'seat-locked');
-        }
-        render();
-        await sleep(reducedMotion() ? 10 : 260);
-    }
 
     if (initiator.id !== 'you' && active(you())) {
         game.pendingBoard = { initiator, stageName, stageNumber };
@@ -643,7 +656,22 @@ async function resolveBoardWindow(initiator) {
         game.pendingBoard = null;
         game.phase = PHASE.RESOLVING;
         render();
-        await sleep(reducedMotion() ? 10 : 320);
+        await sleep(pace(240));
+    }
+
+    for (const { target, decision } of choices) {
+        if (token !== game.roundToken) return false;
+        if (decision.ride) {
+            target.lastAction = `RIDES ${stageName.toUpperCase()} · ${decision.reason}`;
+            flashSeat(target, 'seat-called');
+        } else {
+            target.status = 'locked';
+            target.lockedAt = game.shared.length;
+            target.lastAction = `LOCKED BEFORE ${stageName.toUpperCase()} · ${decision.reason}`;
+            flashSeat(target, 'seat-locked');
+        }
+        render();
+        await sleep(pace(260));
     }
     return token === game.roundToken;
 }
@@ -662,7 +690,7 @@ async function takeAction(seatState, action, reason = '') {
         const stageName = nextBoardName();
         if (!await resolveBoardWindow(seatState) || token !== game.roundToken) return;
         setStatus(`The ${stageName} turns for every seat still riding…`, true);
-        await sleep(reducedMotion() ? 10 : 360);
+        await sleep(pace(360));
         if (token !== game.roundToken) return;
         game.shared.push(game.deck.draw());
         game.boardVersion += 1;
@@ -674,7 +702,7 @@ async function takeAction(seatState, action, reason = '') {
         if (broken.length) {
             const names = broken.map(item => item.id === 'you' ? 'You' : item.name).join(' and ');
             setStatus(`${names} ${broken.length === 1 ? 'breaks' : 'break'} on the shared card.`);
-            await sleep(reducedMotion() ? 10 : 720);
+            await sleep(pace(720));
         }
     } else if (action === 'hand') {
         seatState.privateLeft -= 1;
@@ -689,7 +717,7 @@ async function takeAction(seatState, action, reason = '') {
             if (seatState.id === 'you') SFX.bust();
         }
         render();
-        await sleep(reducedMotion() ? 10 : 420);
+        await sleep(pace(420));
     } else {
         seatState.status = 'locked';
         seatState.lockedAt = game.shared.length;
@@ -697,7 +725,7 @@ async function takeAction(seatState, action, reason = '') {
         SFX.button();
         flashSeat(seatState, 'seat-locked');
         render();
-        await sleep(reducedMotion() ? 10 : 280);
+        await sleep(pace(280));
     }
 
     if (await maybeFinish()) return;
@@ -745,7 +773,7 @@ async function runAiTurn(seatState) {
     seatState.lastAction = 'reading the table';
     render();
     setStatus(`<b>${seatState.name}</b> is reading the board`, true);
-    await sleep(reducedMotion() ? 10 : 520);
+    await sleep(pace(520));
     if (token !== game.roundToken || !active(seatState)) return;
 
     const current = totalOf(seatState);
@@ -796,12 +824,12 @@ async function resolvePressure(aggressor) {
     SFX.counter();
     render();
     setStatus(`<b>${aggressor.name}</b> raises ${money(cost)} — the whole table must answer.`);
-    await sleep(reducedMotion() ? 10 : 500);
+    await sleep(pace(500));
 
     for (const target of game.seats.slice(1)) {
         if (token !== game.roundToken || target === aggressor || !eligible(target)) continue;
         const decision = aiResponds(target, cost);
-        if (decision.call && target.stack >= cost) {
+        if (decision.call && target.stack > 0) {
             commit(target, cost);
             target.lastAction = `CALL · ${decision.reason}`;
             flashSeat(target, 'seat-called');
@@ -812,7 +840,7 @@ async function resolvePressure(aggressor) {
             flashSeat(target, 'seat-folded');
         }
         render();
-        await sleep(reducedMotion() ? 10 : 260);
+        await sleep(pace(260));
     }
 
     if (aggressor.id !== 'you' && eligible(you())) {
@@ -835,7 +863,7 @@ async function resolvePressure(aggressor) {
         game.pendingResponse = null;
         game.phase = PHASE.RESOLVING;
         render();
-        await sleep(reducedMotion() ? 10 : 320);
+        await sleep(pace(320));
     }
 }
 
@@ -851,7 +879,7 @@ async function playerPressure() {
 
 function answerPressure(call) {
     if (game.phase !== PHASE.RESPOND || !game.responseResolve) return;
-    if (call && you().stack < game.pendingResponse.cost) return;
+    if (call && you().stack <= 0) return;
     const resolve = game.responseResolve;
     game.responseResolve = null;
     resolve(call);
@@ -883,15 +911,17 @@ async function finishHand() {
 
     if (winners.length) {
         const baseShare = Math.floor(fullPot / winners.length);
-        let remainder = fullPot - baseShare * winners.length;
+        // Odd chips go to random winners, not always the first seat.
+        const remainder = fullPot - baseShare * winners.length;
+        const lucky = new Set([...winners].sort(() => Math.random() - .5).slice(0, remainder));
         winners.forEach(winner => {
-            const share = baseShare + (remainder > 0 ? 1 : 0);
-            remainder -= remainder > 0 ? 1 : 0;
+            const share = baseShare + (lucky.has(winner) ? 1 : 0);
             winner.stack += share;
             if (winner.id === 'you') userShare = share;
         });
     }
 
+    game.carry = winners.length ? 0 : fullPot;
     game.pot = 0;
     game.handNumber += 1;
     const userWon = showdown.winnerIds.includes('you');
@@ -904,14 +934,14 @@ async function finishHand() {
     if (!winners.length) {
         el.resultEyebrow.textContent = 'Table break';
         el.resultTitle.textContent = 'Nobody survives the board';
-        el.resultPot.textContent = 'Pot burned';
-        el.resultDetail.textContent = 'Four broken lines. The rail takes the dead pot.';
+        el.resultPot.textContent = `${money(fullPot)} rolls over`;
+        el.resultDetail.textContent = 'Every live line broke. The pot carries into the next hand.';
         SFX.lose();
     } else if (userWon && winners.length === 1) {
         el.resultEyebrow.textContent = `Showdown · ${showdown.winningTotal}`;
         el.resultTitle.textContent = 'You take the table';
         el.resultPot.textContent = `+${money(userShare)}`;
-        el.resultDetail.textContent = 'Three rivals answered. Your number held.';
+        el.resultDetail.textContent = 'Your number held.';
         SFX.win();
         confetti(120);
     } else if (userWon) {
@@ -930,7 +960,7 @@ async function finishHand() {
     }
 
     setStatus(winners.length ? `${winnerNames.join(' & ')} ${winners.length === 1 ? 'wins' : 'win'} the ${money(fullPot)} pot.` : 'Every seat broke.');
-    await sleep(reducedMotion() ? 10 : 700);
+    await sleep(pace(700));
     if (token !== game.roundToken || game.phase !== PHASE.OVER) return;
     game.resultReady = true;
     el.result.classList.remove('hidden');
@@ -952,6 +982,7 @@ function readyNextHand() {
         seatState.status = 'waiting';
         seatState.hand = [];
         seatState.lockedAt = null;
+        seatState.privateLeft = PRIVATE_DRAWS;
         seatState.lastAction = seatState.profile ? tableProfiles[seatState.profile].tell : 'Choose an ante';
     });
     game.shared = [];
@@ -1009,7 +1040,7 @@ function sizeCanvas() {
 
 function confetti(count) {
     if (reducedMotion()) return;
-    const colors = ['#f2c76a', '#ffe6a8', '#46e08b', '#ff7a54', '#8b5bd6'];
+    const colors = ['#c9a063', '#ecd29b', '#efe4cf', '#8a6a3a', '#b8432f'];
     for (let i = 0; i < count; i += 1) {
         pieces.push({
             x: window.innerWidth * (.25 + Math.random() * .5),
@@ -1098,9 +1129,8 @@ document.addEventListener('keydown', event => {
         // Prevent the browser from also clicking whichever button receives
         // focus during this state change. Without this, one Enter could both
         // dismiss the result and immediately deal the next hand.
-        event.preventDefault();
-        if (game.phase === PHASE.BET && !el.dealBtn.disabled) startHand();
-        else if (game.phase === PHASE.OVER) readyNextHand();
+        if (game.phase === PHASE.BET && !el.dealBtn.disabled) { event.preventDefault(); startHand(); }
+        else if (game.phase === PHASE.OVER) { event.preventDefault(); readyNextHand(); }
     }
 });
 

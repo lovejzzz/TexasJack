@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#0b2a1f">
+    <meta name="theme-color" content="#0c0a08">
     <meta name="description" content="Texas Jack Four-Seat — attack the shared board, read three rivals, and win the whole pot without going over 21.">
     <title>Texas Jack — Four-Seat Table</title>
     <link rel="icon" type="image/png" href="asset/title.png">
-    <link rel="preload" as="image" href="asset/Win.png">
-    <link rel="preload" as="image" href="asset/Lose.png">
     <link rel="preload" as="image" href="asset/rival-portrait-atlas.jpg">
-    <link rel="stylesheet" href="styles.css?v=board-streets-1">
+    <link rel="stylesheet" href="styles.css?v=noir-1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400;1,600&display=swap">
+    <link rel="stylesheet" href="western.css?v=noir-1">
 </head>
 <body class="table-mode">
 <div class="table table-arena">
     <header class="topbar">
-        <a href="index.html" class="table-wordmark" aria-label="Texas Jack home">
-            <span>Texas</span><b>Jack</b>
-        </a>
+        <a href="index.html" class="wordmark" aria-label="Texas Jack home"><span>Texas</span><i aria-hidden="true">★</i><b>Jack</b></a>
 
         <nav class="game-switch" aria-label="Game table">
             <a href="index.html">Quick Duel</a>
@@ -135,10 +135,10 @@
         <section class="ante-panel" id="antePanel" aria-label="Choose ante">
             <div class="ante-copy"><span>Table stake</span><b id="anteLabel">Choose your ante</b></div>
             <div class="ante-chips" id="anteChips">
-                <button type="button" class="chip" data-value="25" style="--chip:#3fa564;--chip-dark:#1f6b3d" aria-label="Ante 25">25</button>
-                <button type="button" class="chip selected" data-value="50" style="--chip:#d7a841;--chip-dark:#79551e" aria-label="Ante 50">50</button>
-                <button type="button" class="chip" data-value="100" style="--chip:#3b6fd4;--chip-dark:#22448a" aria-label="Ante 100">100</button>
-                <button type="button" class="chip" data-value="250" style="--chip:#8b5bd6;--chip-dark:#553288" aria-label="Ante 250">250</button>
+                <button type="button" class="chip" data-value="25" style="--chip:#d9ccb2;--chip-dark:#8c7b5e;--chip-ink:#2a1d12;--chip-edge:#3b2516" aria-label="Ante 25">25</button>
+                <button type="button" class="chip selected" data-value="50" style="--chip:#7d2a20;--chip-dark:#4e1711" aria-label="Ante 50">50</button>
+                <button type="button" class="chip" data-value="100" style="--chip:#34475a;--chip-dark:#1e2a37" aria-label="Ante 100">100</button>
+                <button type="button" class="chip" data-value="250" style="--chip:#1d1712;--chip-dark:#0c0907;--chip-ink:#ecd29b;--chip-edge:#c9a063" aria-label="Ante 250">250</button>
             </div>
             <button type="button" class="btn btn-deal table-deal" id="dealBtn">
                 <span class="btn-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#deal"></use></svg></span>
@@ -205,16 +205,16 @@
 <div id="rulesModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
     <div class="modal-card table-rules-card">
         <button type="button" class="modal-close" id="rulesClose" aria-label="Close">×</button>
-        <h2 id="rulesTitle">Four seats. One shared fuse.</h2>
-        <p class="lede">Everyone starts with a private card and one opening Board card. Two more shared cards can follow. Get close to 21, read three distinct rivals, and win the whole pot.</p>
+        <h2 id="rulesTitle">Four seats, one pot</h2>
+        <p class="lede">Everyone antes the same stake. Finish closest to 21 without going over and the whole pot is yours.</p>
 
-        <ol class="rules">
-            <li><strong>Ante.</strong> All four seats pay the same stake into one pot.</li>
-            <li><strong>Board.</strong> The shared path has three cards: Opening, Turn, and Final. Before another player reveals one, every active seat chooses Ride or Lock without seeing it.</li>
-            <li><strong>Hand.</strong> Take a private card that only helps or hurts you. You get two per hand.</li>
-            <li><strong>Lock.</strong> Freeze your current number. Future Board cards cannot change it, but you still have to answer later bets.</li>
-            <li><strong>Pressure.</strong> Once per board state, any seat can raise half the ante. Call to stay in or fold the whole hand.</li>
-            <li><strong>Showdown.</strong> Highest total at or below 21 takes the pot. Ties split it.</li>
+        <ol class="steps">
+            <li><b>Board, Hand, or Lock.</b> On your turn, call the next shared <em>Board</em> card,
+                draw a private <em>Hand</em> card (two per hand), or <em>Lock</em> your total.</li>
+            <li><b>Ride or Lock.</b> When anyone calls the Board, each open seat decides blind:
+                ride the card, or lock before it lands.</li>
+            <li><b>Raise or fold.</b> Once per board, a seat can raise half the ante. Call to stay
+                in. Highest total at or under 21 wins; ties split.</li>
         </ol>
 
         <div class="rival-guide">
@@ -229,9 +229,9 @@
 </div>
 
 <canvas id="fx" aria-hidden="true"></canvas>
-<script src="cards.js"></script>
-<script src="audio.js?v=stability-2"></script>
-<script src="rules.js?v=board-streets-1"></script>
-<script src="table-game.js?v=board-streets-1"></script>
+<script src="cards.js?v=noir-1"></script>
+<script src="audio.js?v=noir-1"></script>
+<script src="rules.js?v=noir-1"></script>
+<script src="table-game.js?v=noir-1"></script>
 </body>
 </html>
