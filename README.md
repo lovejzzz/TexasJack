@@ -32,9 +32,25 @@ Pressure 1 pays a 30%-of-ante bounty, Pressure 2 pays 60% and Pressure 3 pays 10
 selective strong read a real climax while making indiscriminate pressing wake a
 more dangerous opponent.
 
-## Two variants
+## The Saloon Ladder
 
-Pick either one from the rules dialog (`?`). Your choice is remembered.
+Quick Duel is a climb past three house dealers. Each one plays from a **purse**:
+every chip you win comes out of it, every chip you lose goes in. Break the purse
+(below the table minimum) to collect that dealer's bounty and move up a rung.
+Lose your stake and you're run out of town — one rung down, with a fresh $500.
+
+| Rung | Dealer | House rule | Purse | Table min | Bounty |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Mara · The Rock | Never counters — press freely | $150 | $25 | $100 |
+| 2 | Vex · The Shark | Counters one level hotter than you pressed | $300 | $50 | $200 |
+| 3 | Sol · The Spark | Takes board cards and draws until 18 | $600 | $100 | $400 |
+
+Each rule bends one thing, so each rung asks for a different skill: Mara teaches
+pressing, Vex punishes sitting back, and Sol turns the board into a weapon that
+cuts both ways. Clear all three and the ladder resets with your stake intact.
+
+The first visit opens on Mara's wanted poster, then plays a short guided hand
+that shows the twist in one move.
 
 ## Four-seat table
 
@@ -62,19 +78,7 @@ shoe or another hand:
 | Vex · The Shark | Presses thin edges and occasionally bluffs |
 | Sol · The Spark | Feeds the shared board and hunts multi-bust chaos |
 
-### Dealer's Call — the original
-
-When you hit, the dealer reacts in the same beat:
-
-| Dealer's total | What happens to your card |
-| --- | --- |
-| Under 17 — dealer hits too | The card lands in the **community row** and feeds both hands |
-| 17 or more — dealer stands | The card is **yours alone** |
-
-So every hit is a read on the dealer, not just a draw. Ask for a card while
-they're sitting on 12 and you may hand them the 9 they needed.
-
-### Your Call — you route the card
+### Board or Hand — you route the card
 
 You decide where every card lands:
 
@@ -97,51 +101,17 @@ standing dealer over the edge.
 
 ## Money on the table
 
-Stand, and the dealer draws privately until they reach 17 or bust. While the
-hand is live, every new card state opens one chance to back the read:
-
-| | What it does | Cost |
-| --- | --- | --- |
-| **Press** | Adds to your live wager once per new card state | Up to half the ante across the hand |
-| **Scout** | Turns the top card of the shoe face up | A third of the ante |
+Stand, and the dealer plays against your total. While the hand is live, every
+new card state opens one chance to back the read with **Press**, which adds to
+your live wager — up to half the ante across the hand.
 
 Press starts at 20% of the ante, narrows to 10% after the first draw, and falls
 to 5% in late windows. An unused window expires when another card is drawn.
 That is the point: commit early against a wide range for more leverage, or wait
-for a sharper read and accept a smaller bet. Total added exposure is capped at
-half the original ante.
-
-The live decision panel keeps Press visible through the hand, shows the current
-price and remaining leverage, and reopens it after each new card.
-
-Scout is deliberately expensive, because it's the one thing the table can't
-tell you. The board already pins the dealer to a range — the next card is pure
-unknown. Measured, knowing it is worth about **19 points of edge**, so 30%
-of your ante is roughly what it's worth. Buy it on 14 against a hand that might
-break you and it pays; buy it every hand and you lose 16 points.
-
-Scout can be bought once per hand. While its known card is waiting on top of the
-shoe, the current Press window is frozen; once that card is drawn and the paid
-certainty is consumed, the next Press window opens normally. This keeps the
-information useful without letting the player see the answer and then bet it at
-the old price.
-
-## Table goals and replay loop
-
-Each hand gets one optional **table goal**, such as raising before the first
-draw, breaking the dealer with a shared card, or finishing on exactly 21.
-Clearing it adds **10% of the ante** (with a $5 floor). Goals rotate by mode and
-reward different tactics without making them mandatory.
+for a sharper read and accept a smaller bet.
 
 At settlement, a short decision note explains the line that shaped the hand.
-The **Again** button then repeats the previous ante and deals immediately, so a
-new attempt is one deliberate click away.
-
-The money also stays spatially legible: chips travel from the selected stake to
-**In Play**, then return to **Bankroll** at settlement while both totals count in
-sync. Wins, exact 21s, hot streaks, table goals, new session peaks, pushes, and
-losses each use a distinct but brief layer of motion and sound. The effects are
-automatically reduced when the operating system requests less motion.
+The **Again** button repeats the previous ante and deals immediately.
 
 ## Payouts
 
@@ -150,8 +120,7 @@ automatically reduced when the operating system requests less motion.
 | Win | 1 : 1 |
 | Win on exactly 21 | 3 : 2 |
 | Push | Bet returned |
-| Hot streak (3+ wins running) | +25% bonus on the win |
-| Table goal | +10% of ante ($5 minimum) |
+| Break a dealer's purse | Their bounty |
 | Beat a Counter at Pressure 1 | +30% of ante |
 | Beat a Counter at Pressure 2 | +60% of ante |
 | Beat a Counter at Pressure 3 | +100% of ante |
@@ -161,10 +130,8 @@ too — you went over first. Pushes happen when both hands finish level.
 
 ## Controls
 
-`↵` deal · `S` stand · `R` press · `P` scout · `1`–`4` place chips ·
+`↵` deal · `B` board · `H` hand · `S` stand · `R` press · `1`–`4` place chips ·
 `M` mute · `?` rules · `Esc` dismiss
-
-`H` hit (Dealer's Call) · `B` board / `H` hand (Your Call)
 
 ## Running it
 
