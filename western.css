@@ -732,8 +732,7 @@ button:focus-visible { outline-color: var(--brass-hot); }
 }
 .steps li {
     position: relative;
-    display: grid;
-    gap: 2px;
+    display: block;
     padding-left: 44px;
     counter-increment: step;
     font-size: 14px;
@@ -756,7 +755,7 @@ button:focus-visible { outline-color: var(--brass-hot); }
     font-size: 15px;
     font-weight: 600;
 }
-.steps b { color: var(--bone); font-weight: 600; font-size: 15px; }
+.steps b { display: block; margin-bottom: 2px; color: var(--bone); font-weight: 600; font-size: 15px; }
 .steps em { color: var(--brass-hot); font-style: normal; }
 
 .more {
@@ -952,4 +951,8 @@ body { font-variant-numeric: lining-nums; }
     .table-mode .rival-seat[data-state="folded"] .seat-range::after { content: ' · Fold'; }
     .table-mode .rival-seat[data-state="bust"] .seat-range::after { content: ' · Bust'; }
     .table-mode .rival-seat .seat-range { white-space: nowrap; }
+}
+
+@media (max-width: 760px) {
+    .money-kicker { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }

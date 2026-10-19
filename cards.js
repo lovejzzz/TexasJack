@@ -151,24 +151,28 @@
 
     /* ---- Card back ----------------------------------------------------------- */
 
+    let BACK_SEQ = 0;
     function cardBackSVG() {
+        // Unique ids per back: duplicated SVG ids across many cards can make
+        // some browsers paint every back from the first one's defs.
+        const u = ++BACK_SEQ;
         return `
     <svg class="card-svg" viewBox="0 0 ${CARD_W} ${CARD_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <defs>
-        <linearGradient id="cb-grad" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id="cb-grad-${u}" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stop-color="#3a1712"/><stop offset="55%" stop-color="#22100c"/><stop offset="100%" stop-color="#140906"/>
         </linearGradient>
-        <pattern id="cb-tool" width="20" height="20" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <pattern id="cb-tool-${u}" width="20" height="20" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <path d="M10 0 V20 M0 10 H20" stroke="rgba(201,160,99,.13)" stroke-width="1"/>
           <circle cx="10" cy="10" r="1.6" fill="rgba(201,160,99,.22)"/>
         </pattern>
-        <radialGradient id="cb-star" cx=".4" cy=".3" r=".8">
+        <radialGradient id="cb-star-${u}" cx=".4" cy=".3" r=".8">
           <stop offset="0%" stop-color="#f3dda8"/><stop offset="60%" stop-color="#c9a063"/><stop offset="100%" stop-color="#7d5e30"/>
         </radialGradient>
       </defs>
       <rect width="${CARD_W}" height="${CARD_H}" rx="18" fill="#efe4cf"/>
-      <rect x="7" y="7" width="${CARD_W - 14}" height="${CARD_H - 14}" rx="13" fill="url(#cb-grad)"/>
-      <rect x="7" y="7" width="${CARD_W - 14}" height="${CARD_H - 14}" rx="13" fill="url(#cb-tool)"/>
+      <rect x="7" y="7" width="${CARD_W - 14}" height="${CARD_H - 14}" rx="13" fill="url(#cb-grad-${u})"/>
+      <rect x="7" y="7" width="${CARD_W - 14}" height="${CARD_H - 14}" rx="13" fill="url(#cb-tool-${u})"/>
       <rect x="17" y="17" width="${CARD_W - 34}" height="${CARD_H - 34}" rx="9"
             fill="none" stroke="rgba(201,160,99,.7)" stroke-width="1.5"/>
       <rect x="22" y="22" width="${CARD_W - 44}" height="${CARD_H - 44}" rx="6"
@@ -176,7 +180,7 @@
       <g transform="translate(120 168)">
         <circle r="56" fill="#160a07" stroke="rgba(201,160,99,.75)" stroke-width="2"/>
         <circle r="49" fill="none" stroke="rgba(201,160,99,.35)" stroke-width="1"/>
-        <path d="M0 -40 L9.4 -13 L38 -12.4 L15.2 4.9 L23.5 32.4 L0 16 L-23.5 32.4 L-15.2 4.9 L-38 -12.4 L-9.4 -13 Z" fill="url(#cb-star)" stroke="#5a4020" stroke-width="1.2"/>
+        <path d="M0 -40 L9.4 -13 L38 -12.4 L15.2 4.9 L23.5 32.4 L0 16 L-23.5 32.4 L-15.2 4.9 L-38 -12.4 L-9.4 -13 Z" fill="url(#cb-star-${u})" stroke="#5a4020" stroke-width="1.2"/>
         <circle cx="0" cy="-40" r="3.4" fill="#e3c584"/><circle cx="38" cy="-12.4" r="3.4" fill="#e3c584"/>
         <circle cx="23.5" cy="32.4" r="3.4" fill="#e3c584"/><circle cx="-23.5" cy="32.4" r="3.4" fill="#e3c584"/>
         <circle cx="-38" cy="-12.4" r="3.4" fill="#e3c584"/>

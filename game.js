@@ -167,10 +167,14 @@ const game = {
 const routed = () => game.mode === 'routed';
 
 function persist() {
+    // Chips on the betting line are still yours; chips in a live hand are
+    // committed, so a reload forfeits that hand rather than refunding it.
+    const betting = game.phase === PHASE.BET;
+    const live = !betting && game.phase !== PHASE.OVER;
     save.write({
-        bankroll: game.bankroll,
+        bankroll: game.bankroll + (betting ? game.bet : 0),
         lastBet: game.lastBet,
-        streak: game.streak,
+        streak: live ? 0 : game.streak,
         hands: game.hands,
         wins: game.wins,
         best: game.best,
@@ -328,9 +332,23 @@ function dealerRange() {
     const hidden = game.dealer.length;
     if (hidden === 0 || hidden > 3) return null;   // 3 is already 1000 combinations
 
+    // Each board card is public evidence: the dealer took it only while under
+    // 17. A hidden card that would have taken a card the dealer passed on (or
+    // the reverse) is ruled out, so a "yours" tag sharpens the read.
+    const consistent = cards => {
+        const taken = [];
+        for (const card of game.shared) {
+            const took = handTotal(cards, taken).total < DEALER_STANDS_ON;
+            if (took !== game.dealerBoard.includes(card)) return false;
+            if (took) taken.push(card);
+        }
+        return true;
+    };
+
     const totals = [];
     const walk = (depth, cards) => {
         if (depth === hidden) {
+            if (!game.dealerRevealed && !consistent(cards)) return;
             // Only the board cards the dealer actually took, not the whole row.
             totals.push(handTotal(cards, game.dealerBoard).total);
             return;
@@ -341,6 +359,7 @@ function dealerRange() {
 
     // A live hand means the dealer hasn't busted — every card that lands on the
     // board is checked against them — so totals over 21 are ruled out.
+    if (!totals.length) return null;
     const live = game.phase !== PHASE.OVER ? totals.filter(t => t <= 21) : [];
     const feasible = live.length ? live : totals;
     return { min: Math.min(...feasible), max: Math.max(...feasible) };
@@ -454,9 +473,11 @@ function syncControls() {
     el.hitBtn.hidden = routed();
     el.boardBtn.hidden = !routed();
     el.handBtn.hidden = !routed();
-    el.hitBtn.disabled = !playing;
-    el.boardBtn.disabled = !playing;
-    el.handBtn.disabled = !playing || game.privateLeft <= 0;
+    // On 21 another card can only hurt you, so Stand is the one move left.
+    const drawable = playing && playerTotal().total < 21;
+    el.hitBtn.disabled = !drawable;
+    el.boardBtn.disabled = !drawable;
+    el.handBtn.disabled = !drawable || game.privateLeft <= 0;
     el.handLeft.textContent = game.privateLeft;
 
     // The money row swaps between placing a bet and acting on one.
@@ -565,6 +586,7 @@ async function startRound() {
     game.privateLeft = PRIVATE_DRAWS;
     game.challenge = tableGoal(game.mode, game.hands, game.ante);
     game.deck.reset();
+    persist();
 
     clearTable();
     renderScout();
@@ -587,7 +609,7 @@ async function startRound() {
 
     const p = handTotal(game.player, game.shared);
     if (p.total === 21) {
-        setStatus('Twenty-one off the deal. Stand and take it?');
+        setStatus('Twenty-one off the deal — <b>Stand</b> and collect.');
     } else if (routed()) {
         setStatus('Your move — card to the <b>Board</b> or to your <b>Hand</b>.');
     } else {
@@ -631,16 +653,16 @@ async function playerHit() {
     const dealerHitsToo = dealerBefore < DEALER_STANDS_ON;
 
     setStatus('You call for a card — the dealer weighs it', { thinking: true });
-    await sleep(760);
+    await sleep(440);
     SFX.button();
 
     if (dealerHitsToo) {
         setStatus('Dealer takes one too — <b>this card is shared</b>.');
-        await sleep(520);
+        await sleep(320);
         await layOnBoard(card);
     } else {
-        setStatus(`Dealer stands on ${dealerBefore}+ — <b>the card is yours alone</b>.`);
-        await sleep(520);
+        setStatus('Dealer is pat — <b>the card is yours alone</b>.');
+        await sleep(320);
         highlightLane('player');
         await dealTo(game.player, el.playerCards, card);
     }
@@ -744,6 +766,7 @@ function playerRaise() {
     game.bankroll -= amount;
     game.bet += amount;
     game.pressTotal += amount;
+    persist();
     game.pressedAtDraw = game.drawsTaken;
     const pressureBefore = game.pressure;
     game.pressure = Math.min(3, game.pressure + pressureGain({
@@ -785,6 +808,7 @@ function playerScout() {
     const bankBefore = game.bankroll;
     game.bankroll -= cost;
     game.scoutUsed = true;
+    persist();
     if (!game.moneyAction) game.moneyAction = 'scout';
     game.scouted = game.deck.peek();
     SFX.chip();
@@ -873,8 +897,11 @@ async function dealerPlay() {
                 game.dealerIntent = { text: `holds the ${d} push`, tone: 'tell-maybe' };
                 setStatus(`Dealer takes the push at <b>${d}</b>.`);
             } else if (move.intent === 'concede') {
-                game.dealerIntent = { text: `counter spent · trails ${p}`, tone: 'tell-hit' };
-                setStatus(`Counter spent — dealer cannot catch your <b>${p}</b>.`);
+                const reason = game.counterUsed ? 'counter spent' : 'out of reach';
+                game.dealerIntent = { text: `${reason} · trails ${p}`, tone: 'tell-hit' };
+                setStatus(game.counterUsed
+                    ? `Counter spent — dealer cannot catch your <b>${p}</b>.`
+                    : `Dealer can't chase your <b>${p}</b> and stands.`);
             } else if (move.intent === 'hold') {
                 game.dealerIntent = { text: d === 21 ? 'locks 21' : `holds ${d}`, tone: 'tell-pat' };
                 setStatus(d === 21 ? 'Dealer locks in <b>21</b>.' : `Dealer holds at <b>${d}</b>.`);
@@ -1058,18 +1085,23 @@ async function finish(outcome, message, { bust = false } = {}) {
 
     setStatus(message);
 
-    setTimeout(() => {
-        if (game.phase !== PHASE.OVER) return;
-        game.phase = PHASE.BET;
-        syncControls();
-        if (game.bankroll === 0) {
-            setStatus("You're tapped out. Take a rebuy and get back in.");
-        } else {
-            setStatus(game.streak >= HOT_STREAK_AT
-                ? `${game.streak} in a row — the hot streak bonus is active.`
-                : 'Place your bet — or tap Again.');
-        }
-    }, 2100);
+    clearTimeout(openBetting.timer);
+    openBetting.timer = setTimeout(openBetting, 2100);
+}
+
+/** Back to the betting rail — on a timer, or straight away if the splash is dismissed. */
+function openBetting() {
+    clearTimeout(openBetting.timer);
+    if (game.phase !== PHASE.OVER) return;
+    game.phase = PHASE.BET;
+    syncControls();
+    if (game.bankroll === 0) {
+        setStatus("You're tapped out. Take a rebuy and get back in.");
+    } else {
+        setStatus(game.streak >= HOT_STREAK_AT
+            ? `${game.streak} in a row — the hot streak bonus is active.`
+            : 'Place your bet — or tap Again.');
+    }
 }
 
 function rebuy() {
@@ -1439,7 +1471,7 @@ el.rulesGo.addEventListener('click', closeRules);
 el.rulesModal.addEventListener('click', e => { if (e.target === el.rulesModal) closeRules(); });
 
 el.soundBtn.addEventListener('click', () => { SFX.toggleMute(); syncSoundIcon(); });
-el.overlay.addEventListener('click', hideOverlay);
+el.overlay.addEventListener('click', () => { hideOverlay(); openBetting(); });
 
 document.addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -1476,6 +1508,11 @@ document.addEventListener('keydown', e => {
     else if (key === 's') { if (!el.standBtn.disabled) playerStand(); }
     else if (key === 'r') { if (!el.raiseBtn.disabled) playerRaise(); }
     else if (key === 'p') { if (!el.scoutBtn.disabled) playerScout(); }
+    else if (key === 'enter' && interactiveTarget && interactiveTarget.closest('#betControls')) {
+        // Enter means Deal, even right after clicking a chip with the mouse.
+        e.preventDefault();
+        if (!el.dealBtn.disabled) startRound();
+    }
     else if (key === 'enter' && !interactiveTarget) {
         e.preventDefault();
         if (!el.dealBtn.disabled) startRound();

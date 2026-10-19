@@ -27,8 +27,11 @@ test('goals only clear on a winning hand that satisfies their condition', () => 
         ...base, boardBrokeDealer: true
     }), true);
     assert.equal(rules.tableGoalComplete({ id: 'private_reserve' }, {
-        ...base, mode: 'routed', privateLeft: 1
+        ...base, mode: 'routed', privateLeft: 2
     }), true);
+    assert.equal(rules.tableGoalComplete({ id: 'private_reserve' }, {
+        ...base, mode: 'routed', privateLeft: 1
+    }), false);
     assert.equal(rules.tableGoalComplete({ id: 'exact21' }, {
         ...base, playerTotal: 21
     }), true);
@@ -99,8 +102,8 @@ test('late conviction creates more pressure and Counter wins pay a bounty', () =
     assert.equal(rules.pressureGain({ drawsTaken: 1, scoutUsed: false }), 1);
     assert.equal(rules.pressureGain({ drawsTaken: 2, scoutUsed: false }), 2);
     assert.equal(rules.pressureGain({ drawsTaken: 1, scoutUsed: true }), 2);
-    assert.equal(rules.counterBounty({ ante: 100, pressure: 1, counterUsed: true, outcome: 'win' }), 0);
-    assert.equal(rules.counterBounty({ ante: 100, pressure: 2, counterUsed: true, outcome: 'win' }), 50);
+    assert.equal(rules.counterBounty({ ante: 100, pressure: 1, counterUsed: true, outcome: 'win' }), 30);
+    assert.equal(rules.counterBounty({ ante: 100, pressure: 2, counterUsed: true, outcome: 'win' }), 60);
     assert.equal(rules.counterBounty({ ante: 100, pressure: 3, counterUsed: true, outcome: 'win' }), 100);
     assert.equal(rules.counterBounty({ ante: 100, pressure: 3, counterUsed: true, outcome: 'lose' }), 0);
     assert.equal(rules.counterBounty({ ante: 100, pressure: 3, counterUsed: false, outcome: 'win' }), 0);

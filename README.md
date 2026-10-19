@@ -28,7 +28,7 @@ public odds. Once Counter is spent, it is gone for that hand.
 The dealer never peeks at the next card. Its decision uses only the revealed
 scores, soft-hand state, Pressure, and public full-shoe rank odds, so the
 opponent feels responsive without cheating. If you beat a spent Counter,
-Pressure 2 pays a 50%-of-ante bounty and Pressure 3 pays 100%. This gives a
+Pressure 1 pays a 30%-of-ante bounty, Pressure 2 pays 60% and Pressure 3 pays 100%. This gives a
 selective strong read a real climax while making indiscriminate pressing wake a
 more dangerous opponent.
 
@@ -116,7 +116,7 @@ price and remaining leverage, and reopens it after each new card.
 
 Scout is deliberately expensive, because it's the one thing the table can't
 tell you. The board already pins the dealer to a range — the next card is pure
-unknown. Measured, knowing it is worth about **19 points of edge**, so a third
+unknown. Measured, knowing it is worth about **19 points of edge**, so 30%
 of your ante is roughly what it's worth. Buy it on 14 against a hand that might
 break you and it pays; buy it every hand and you lose 16 points.
 
@@ -152,7 +152,8 @@ automatically reduced when the operating system requests less motion.
 | Push | Bet returned |
 | Hot streak (3+ wins running) | +25% bonus on the win |
 | Table goal | +10% of ante ($5 minimum) |
-| Beat a Counter at Pressure 2 | +50% of ante |
+| Beat a Counter at Pressure 1 | +30% of ante |
+| Beat a Counter at Pressure 2 | +60% of ante |
 | Beat a Counter at Pressure 3 | +100% of ante |
 
 Bust over 21 and you lose, even if the same community card breaks the dealer
@@ -163,7 +164,7 @@ too — you went over first. Pushes happen when both hands finish level.
 `↵` deal · `S` stand · `R` press · `P` scout · `1`–`4` place chips ·
 `M` mute · `?` rules · `Esc` dismiss
 
-`H` hit (Dealer's Call) · `B` board / `H` hand / `R` ride prompt (Your Call)
+`H` hit (Dealer's Call) · `B` board / `H` hand (Your Call)
 
 ## Running it
 
