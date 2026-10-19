@@ -7,11 +7,11 @@
     <meta name="description" content="Texas Jack — Blackjack meets Texas Hold'em. Duel the dealer or face three distinct rivals at the four-seat table.">
     <title>Texas Jack</title>
     <link rel="icon" type="image/png" href="asset/title.png">
-    <link rel="stylesheet" href="styles.css?v=noir-1">
+    <link rel="stylesheet" href="styles.css?v=ladder-1">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400;1,600&display=swap">
-    <link rel="stylesheet" href="western.css?v=noir-1">
+    <link rel="stylesheet" href="western.css?v=ladder-1">
 </head>
 <body>
 <div class="table">
@@ -26,16 +26,16 @@
 
         <div class="readouts">
             <div class="readout bankroll">
-                <span class="readout-label">Bankroll</span>
-                <span class="readout-value" id="bankroll">$1,000</span>
+                <span class="readout-label">Stake</span>
+                <span class="readout-value" id="bankroll">$500</span>
             </div>
             <div class="readout">
                 <span class="readout-label">In Play</span>
                 <span class="readout-value" id="potValue">$0</span>
             </div>
             <div class="readout streak" id="streakBox">
-                <span class="readout-label">Streak</span>
-                <span class="readout-value" id="streak">0</span>
+                <span class="readout-label">Rung</span>
+                <span class="readout-value" id="streak">1 / 3</span>
             </div>
         </div>
 
@@ -61,11 +61,19 @@
 
         <section class="lane lane-dealer">
             <div class="lane-head">
-                <span class="lane-name">Dealer</span>
+                <span class="portrait portrait-rock" id="rivalAvatar" aria-hidden="true"></span>
+                <span class="lane-name" id="dealerName">Mara</span>
                 <span class="pill" id="dealerTotal" data-state="idle">—</span>
                 <span class="lane-hint" id="dealerRead">stands on 17</span>
                 <span class="dealer-pressure" id="dealerPressure" data-level="0">Pressure 0</span>
                 <span class="dealer-counter locked" id="dealerCounter" role="status" title="Pressing can unlock one adaptive draw">Counter locked</span>
+            </div>
+            <div class="rival-meta">
+                <span class="house-rule" id="houseRule">Never counters</span>
+                <span class="purse" title="Break the purse to climb the ladder">
+                    <span>Purse</span><b id="purseValue">$150</b>
+                    <i class="purse-track" aria-hidden="true"><em id="purseBar"></em></i>
+                </span>
             </div>
             <div class="cards" id="dealerCards" aria-live="polite"></div>
         </section>
@@ -91,10 +99,6 @@
             <span class="shoe-count" id="shoeCount">52</span>
         </div>
 
-        <div class="scout-slot" id="scoutSlot" hidden>
-            <span class="scout-label">Next</span>
-            <div class="scout-card" id="scoutCard"></div>
-        </div>
     </main>
 
     <div class="status" id="status" role="status">Place your bet to begin.</div>
@@ -111,6 +115,7 @@
                 <div class="bet-meta">
                     <button class="mini-btn" id="clearBet">Clear</button>
                     <button class="mini-btn" id="maxBet">Max</button>
+                    <span class="table-min" id="tableMin">Table min $25</span>
                     <button class="mini-btn again" id="rebet" aria-label="Re-bet and deal">
                         <svg class="mini-icon" aria-hidden="true"><use href="asset/ui-icons.svg#deal"></use></svg>
                         Again
@@ -119,42 +124,16 @@
             </div>
 
             <div class="play-money" id="playMoney" hidden>
-                <div class="table-goal" id="challengeBox">
-                    <span class="challenge-label">
-                        <svg class="label-icon" aria-hidden="true"><use href="asset/ui-icons.svg#goal"></use></svg>
-                        Table goal
+                <button class="money-btn raise" id="raiseBtn" disabled>
+                    <span class="money-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#raise"></use></svg></span>
+                    <span class="money-kicker">Back your read</span>
+                    <span class="money-main">
+                        <span class="money-label">Press</span>
+                        <b id="raiseAmt">—</b>
                     </span>
-                    <b id="challengeText">—</b>
-                    <em id="challengeReward"></em>
-                </div>
-                <div class="money-choice">
-                    <div class="money-choice-head">
-                        <span>Live conviction</span>
-                        <small>Press once after each new card</small>
-                    </div>
-                    <div class="money-choice-grid">
-                        <button class="money-btn raise" id="raiseBtn" disabled>
-                            <span class="money-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#raise"></use></svg></span>
-                            <span class="money-kicker">Back this read</span>
-                            <span class="money-main">
-                                <span class="money-label">Press</span>
-                                <b id="raiseAmt">—</b>
-                            </span>
-                            <span class="money-detail" id="raiseDetail">A new card opens a new price</span>
-                            <kbd>R</kbd>
-                        </button>
-                        <button class="money-btn scout" id="scoutBtn" disabled>
-                            <span class="money-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#scout"></use></svg></span>
-                            <span class="money-kicker">Buy information</span>
-                            <span class="money-main">
-                                <span class="money-label">Scout</span>
-                                <b id="scoutAmt">—</b>
-                            </span>
-                            <span class="money-detail" id="scoutDetail">Reveal the next card</span>
-                            <kbd>P</kbd>
-                        </button>
-                    </div>
-                </div>
+                    <span class="money-detail" id="raiseDetail">A new card opens a new price</span>
+                    <kbd>R</kbd>
+                </button>
             </div>
         </div>
 
@@ -163,15 +142,15 @@
                 <span class="btn-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#deal"></use></svg></span>
                 <span class="btn-label" id="dealLabel">Deal</span><kbd>↵</kbd>
             </button>
-            <button class="btn btn-hit" id="hitBtn" disabled>
+            <button class="btn btn-hit" id="hitBtn" disabled hidden>
                 <span class="btn-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#hit"></use></svg></span>
                 <span class="btn-label">Hit</span><kbd>H</kbd>
             </button>
-            <button class="btn btn-board" id="boardBtn" disabled hidden>
+            <button class="btn btn-board" id="boardBtn" disabled>
                 <span class="btn-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#board"></use></svg></span>
                 <span class="btn-label">Board</span><kbd>B</kbd>
             </button>
-            <button class="btn btn-hand" id="handBtn" disabled hidden>
+            <button class="btn btn-hand" id="handBtn" disabled>
                 <span class="btn-icon" aria-hidden="true"><svg><use href="asset/ui-icons.svg#hand"></use></svg></span>
                 <span class="btn-label">Hand</span>
                 <span class="tally" id="handLeft">2</span><kbd>H</kbd></button>
@@ -197,35 +176,29 @@
         <h2 id="rulesTitle">How to play</h2>
         <p class="lede">Blackjack with a shared board. Get closer to 21 than the dealer &mdash;
             but every card in the middle counts for <em>both</em> of you.</p>
-        <div class="mode-switch" id="modeSwitch" role="group" aria-label="Rules variant">
-            <button type="button" data-pick="classic">
-                <b>Dealer's Call</b><span>The dealer decides where your card lands</span>
-            </button>
-            <button type="button" data-pick="routed">
-                <b>Your Call</b><span>You decide where your card lands</span>
-            </button>
-        </div>
 
         <ol class="steps">
             <li><b>Read the board.</b> You and the dealer each hold one private card. The dealer's
                 is face down, but the board pins them to a range.</li>
-            <li data-variant="classic"><b>Hit or stand.</b> If the dealer is under 17, your hit lands
-                on the board and feeds you both. On 17 or more, the card is yours alone.</li>
-            <li data-variant="routed"><b>Board or Hand.</b> Send a card to the <em>board</em> to push the
-                dealer, or keep it in your <em>hand</em> &mdash; twice per hand.</li>
+            <li><b>Board or Hand.</b> Send each card to the <em>board</em>, where it lands in the
+                dealer's hand too while they're drawing, or keep it in your <em>hand</em> &mdash;
+                twice per hand.</li>
             <li><b>Stand and show down.</b> The dealer flips and plays to beat you. Bust and you lose,
                 even if they bust too.</li>
+            <li><b>Climb the ladder.</b> Each dealer plays from a purse. Break it to collect their
+                bounty and move up; lose your stake and you drop a rung.</li>
         </ol>
 
         <details class="more">
-            <summary>Betting extras</summary>
+            <summary>Press &amp; the Counter</summary>
             <ul class="rules">
                 <li><strong>Press</strong> adds to your bet after a new card. The earlier you press,
                     the bigger the offer.</li>
-                <li><strong>Scout</strong> costs 30% of your ante and shows the next card. Once per hand.</li>
                 <li><strong>Counter.</strong> Pressing makes the dealer bolder: they may draw once more to
-                    chase you. Beat it and earn a bounty of <em>+30%</em>, <em>+60%</em> or <em>+100%</em> of the ante, by Pressure level.</li>
-                <li><strong>Table goal</strong> is an optional objective worth <em>+10%</em> of the ante.</li>
+                    chase you. Beat it and earn a bounty of <em>+30%</em>, <em>+60%</em> or <em>+100%</em>
+                    of the ante, by Pressure level.</li>
+                <li><strong>House rules.</strong> Mara never counters. Vex chases one level hotter
+                    than you pressed. Sol takes board cards and draws until 18.</li>
             </ul>
         </details>
 
@@ -235,32 +208,36 @@
                 <li><span>Win</span><b>1 : 1</b></li>
                 <li><span>Win on exactly 21</span><b>3 : 2</b></li>
                 <li><span>Push</span><b>bet returned</b></li>
-                <li><span>Hot streak (3+ wins)</span><b>+25%</b></li>
+                <li><span>Break a purse</span><b>rival's bounty</b></li>
             </ul>
             <ul class="stats" id="sessionStats">
                 <li><b id="statHands">0</b><span>hands</span></li>
                 <li><b id="statWins">0</b><span>wins</span></li>
                 <li><b id="statRate">—</b><span>win rate</span></li>
-                <li><b id="statBest">$1,000</b><span>peak bankroll</span></li>
+                <li><b id="statBest">$500</b><span>peak stake</span></li>
             </ul>
             <p class="shortcuts">
-                <kbd>↵</kbd> deal ·
-                <span data-variant="classic"><kbd>H</kbd> hit</span>
-                <span data-variant="routed"><kbd>B</kbd> board · <kbd>H</kbd> hand</span> ·
-                <kbd>S</kbd> stand · <kbd>R</kbd> press · <kbd>P</kbd> scout ·
-                <kbd>M</kbd> mute · <kbd>?</kbd> rules</p>
+                <kbd>↵</kbd> deal · <kbd>B</kbd> board · <kbd>H</kbd> hand ·
+                <kbd>S</kbd> stand · <kbd>R</kbd> press · <kbd>M</kbd> mute · <kbd>?</kbd> rules</p>
         </details>
         <div class="modal-foot">
-            <button class="btn btn-deal modal-cta" id="rulesGo">Deal me in</button>
+            <button class="btn btn-deal modal-cta" id="rulesGo">Back to the table</button>
         </div>
     </div>
 </div>
 
+<!-- Ladder poster ---------------------------------------------------------- -->
+<div id="poster" class="modal poster hidden" role="dialog" aria-modal="true" aria-labelledby="posterTitle">
+    <div class="poster-card" id="posterCard"></div>
+</div>
+
+<div class="coach" id="coach" role="status" hidden><p id="coachText"></p></div>
+
 <canvas id="fx" aria-hidden="true"></canvas>
 
-<script src="cards.js?v=noir-1"></script>
-<script src="audio.js?v=noir-1"></script>
-<script src="rules.js?v=noir-1"></script>
-<script src="game.js?v=noir-1"></script>
+<script src="cards.js?v=ladder-1"></script>
+<script src="audio.js?v=ladder-1"></script>
+<script src="rules.js?v=ladder-1"></script>
+<script src="game.js?v=ladder-1"></script>
 </body>
 </html>

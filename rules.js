@@ -95,6 +95,50 @@
         return Math.round((Number(ante) || 0) * rate);
     }
 
+    /* ---- Saloon Ladder ------------------------------------------------------
+       Quick Duel is a climb past three house dealers. Each one bends a single
+       rule, so beating them asks for a different skill. Measured over 200k
+       hands with a plain routing policy (profit per unit wagered):
+         Mara  never counters      no press -2.4%   press +0.8%
+         Vex   counters one level  no press -6.9%   press -1.8%
+               hotter than you pressed
+         Sol   takes the board and no press -5.1%   press -3.5%
+               draws until 18
+       Purses are four to six table minimums against a stake of ten or more,
+       so a rung takes 20-60 hands. Simulated with the same policy betting the
+       minimum, Mara falls about 80% of the time, Vex 65%, Sol 58%. */
+    const ladderRivals = [
+        {
+            id: 'rock', name: 'Mara', title: 'The Rock',
+            rule: 'Never counters', ruleDetail: 'She stands on her number and never chases you. Press freely.',
+            standsOn: 17, heatBonus: 0, counters: false,
+            purse: 150, minBet: 25, bounty: 100
+        },
+        {
+            id: 'shark', name: 'Vex', title: 'The Shark',
+            rule: 'Chases one level hotter', ruleDetail: 'Vex counters as if you had pressed once more. Sitting back is the expensive line.',
+            standsOn: 17, heatBonus: 1, counters: true,
+            purse: 300, minBet: 50, bounty: 200
+        },
+        {
+            id: 'spark', name: 'Sol', title: 'The Spark',
+            rule: 'Draws to 18', ruleDetail: 'Sol takes board cards and draws until 18. More of your board cards land on him — and he finishes higher.',
+            standsOn: 18, heatBonus: 0, counters: true,
+            purse: 600, minBet: 100, bounty: 400
+        }
+    ];
+    const LADDER_STAKE = 500;
+
+    function ladderRival(rung) {
+        const index = Math.max(0, Math.min(ladderRivals.length - 1, Number(rung) || 0));
+        return ladderRivals[index];
+    }
+
+    /** Where a run lands after the player's stake is gone: one rung down, fresh stake. */
+    function ladderFall(rung) {
+        return { rung: Math.max(0, (Number(rung) || 0) - 1), stake: LADDER_STAKE };
+    }
+
     const tableProfiles = {
         rock: {
             name: 'Mara', title: 'The Rock', glyph: '◆', tell: 'Locks value early'
@@ -273,7 +317,7 @@
      * Behind means chase, ahead means protect, and maximum Pressure only risks
      * a low tie when the public full-shoe odds are favorable or near-even.
      */
-    function dealerMove({ dealerTotal, playerTotal, soft = false, pressureAvailable = true, pressure = 0 }) {
+    function dealerMove({ dealerTotal, playerTotal, soft = false, pressureAvailable = true, pressure = 0, standsOn = 17 }) {
         const dealer = Number(dealerTotal) || 0;
         const player = Number(playerTotal) || 0;
         const heat = Math.max(0, Math.min(3, Number(pressure) || 0));
@@ -281,7 +325,7 @@
             return { draw: false, intent: 'hold', edge: -1, usesCounter: false };
         }
         if (dealer < player) {
-            if (dealer < 17) return { draw: true, intent: 'build', edge: 1, usesCounter: false };
+            if (dealer < standsOn) return { draw: true, intent: 'build', edge: 1, usesCounter: false };
             const gap = player - dealer;
             const counterRange = [0, 2, 4, 21][heat];
             return pressureAvailable && gap <= counterRange
@@ -356,7 +400,11 @@
         tableBoardDecision,
         tableShowdown,
         dealerMove,
-        decisionInsight
+        decisionInsight,
+        ladderRivals,
+        ladderRival,
+        ladderFall,
+        LADDER_STAKE
     };
     if (typeof window !== 'undefined') window.TJRules = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;

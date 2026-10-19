@@ -165,3 +165,18 @@ test('round insight explains the decision that shaped the hand', () => {
         moneyAction: null, bust: true
     }), /breaks you first/);
 });
+
+test('ladder rivals climb in difficulty and bend one rule each', () => {
+    assert.equal(rules.ladderRivals.length, 3);
+    const [rock, shark, spark] = rules.ladderRivals;
+    assert.equal(rock.counters, false);
+    assert.equal(shark.heatBonus, 1);
+    assert.equal(spark.standsOn, 18);
+    assert.ok(rock.purse < shark.purse && shark.purse < spark.purse);
+    assert.equal(rules.ladderRival(99).id, 'spark');
+    assert.deepEqual(rules.ladderFall(0), { rung: 0, stake: rules.LADDER_STAKE });
+    assert.deepEqual(rules.ladderFall(2), { rung: 1, stake: rules.LADDER_STAKE });
+    // A dealer that draws to 18 keeps building from 17 when behind.
+    assert.equal(rules.dealerMove({ dealerTotal: 17, playerTotal: 19, standsOn: 18, pressureAvailable: false }).draw, true);
+    assert.equal(rules.dealerMove({ dealerTotal: 17, playerTotal: 19, pressureAvailable: false }).draw, false);
+});
