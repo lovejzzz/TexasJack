@@ -157,6 +157,7 @@ const game = {
     lastDealerBet: null,
     handStartStake: 0,
     practice: false,
+    lastVerdict: '',
     settled: true,
     hands: savedHands,
     wins: Math.min(savedHands, savedCount(persisted.wins)),
@@ -1141,10 +1142,16 @@ async function finish(outcome, message, { bust = false, fold = false } = {}) {
         setTimeout(() => say('half'), 1300);
     }
 
-    setStatus(message);
+    // The verdict stays on the table after the splash fades, so the felt
+    // never shows a finished hand without saying who took it.
+    const verdict = outcome === 'win' ? `<b>You won ${detail.split(' · ')[0]}</b>`
+        : outcome === 'push' ? '<b>Push</b>'
+        : `<b>You lost ${detail.split(' · ')[0]}</b>`;
+    game.lastVerdict = `${verdict} — ${message}`;
+    setStatus(game.lastVerdict);
     game.settled = true;
     clearTimeout(openBetting.timer);
-    openBetting.timer = setTimeout(openBetting, 2100);
+    openBetting.timer = setTimeout(openBetting, 2600);
 }
 
 /** Back between hands — on a timer, or straight away if the splash is dismissed. */
@@ -1182,9 +1189,8 @@ function openBetting() {
     }
     const risesNow = game.matchHand > 0 && game.matchHand % 2 === 0;
     if (risesNow) say('rise');
-    setStatus(risesNow
-        ? `The ante rises to <b>${money(currentAnte())}</b>.`
-        : `Deal when ready — ante <b>${money(currentAnte())}</b>.`);
+    const next = risesNow ? `Ante rises to <b>${money(currentAnte())}</b>.` : '';
+    setStatus(game.lastVerdict ? `${game.lastVerdict} ${next}` : `Deal when ready — ante <b>${money(currentAnte())}</b>.`);
 }
 
 /* ---- Flourishes ---------------------------------------------------------- */
@@ -1389,7 +1395,7 @@ function showSplash(kind, detail, insight = '') {
     void el.resultStamp.offsetWidth;
     el.resultStamp.style.animation = '';
     clearTimeout(showSplash.timer);
-    showSplash.timer = setTimeout(hideOverlay, 1900);
+    showSplash.timer = setTimeout(hideOverlay, 2400);
 }
 
 function hideOverlay() {

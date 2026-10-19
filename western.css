@@ -606,7 +606,7 @@ button:focus-visible { outline-color: var(--brass-hot); }
     outline: 1px solid var(--stamp);
     outline-offset: 5px;
     transform: rotate(-4deg);
-    animation: wnStamp 1.9s cubic-bezier(.2, 1.1, .3, 1) forwards;
+    animation: wnStamp 2.4s cubic-bezier(.2, 1.1, .3, 1) forwards;
 }
 .result-stamp[data-kind="lose"],
 .result-stamp[data-kind="bust"] { --stamp: #e06a52; }
