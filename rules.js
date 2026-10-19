@@ -95,39 +95,40 @@
         return Math.round((Number(ante) || 0) * rate);
     }
 
-    /* ---- Saloon Ladder ------------------------------------------------------
-       Quick Duel is a climb past three house dealers. Each one bends a single
-       rule, so beating them asks for a different skill. Measured over 200k
-       hands with a plain routing policy (profit per unit wagered):
-         Mara  never counters      no press -2.4%   press +0.8%
-         Vex   counters one level  no press -6.9%   press -1.8%
-               hotter than you pressed
-         Sol   takes the board and no press -5.1%   press -3.5%
-               draws until 18
-       Purses are four to six table minimums against a stake of ten or more,
-       so a rung takes 20-60 hands. Simulated with the same policy betting the
-       minimum, Mara falls about 80% of the time, Vex 65%, Sol 58%. */
+    /* ---- Saloon Ladder: the heads-up duel ----------------------------------
+       Quick Duel is a climb past three house dealers, each a short match with
+       real betting: fixed-limit bets, up to three betting rounds a hand, and an
+       ante that rises every three hands. Each rival's personality lives in how
+       they bet. All tuning numbers are checked by scripts/simulate-duel.cjs. */
     const ladderRivals = [
         {
             id: 'rock', name: 'Mara', title: 'The Rock',
-            rule: 'Never counters', ruleDetail: 'She stands on her number and never chases you. Press freely.',
-            standsOn: 17, heatBonus: 0, counters: false,
-            purse: 150, minBet: 25, bounty: 100
+            rule: 'Never bluffs',
+            ruleDetail: 'Tight and honest. Mara folds what she can’t win and never bluffs — when she raises, believe her.',
+            standsOn: 17, maxRaises: 1,
+            valueLine: 0.75, boostLine: 0.75, leadLine: 0.75, callAdj: 0.05, bluff: 0, belief: 1,
+            purse: 250, ante: 10, bounty: 100
         },
         {
             id: 'shark', name: 'Vex', title: 'The Shark',
-            rule: 'Chases one level hotter', ruleDetail: 'Vex counters as if you had pressed once more. Sitting back is the expensive line.',
-            standsOn: 17, heatBonus: 1, counters: true,
-            purse: 300, minBet: 50, bounty: 200
+            rule: 'Two raises a round',
+            ruleDetail: 'Loose and aggressive. Vex bluffs about one bet in five and may raise twice in a round. Don’t get pushed off a fair hand.',
+            standsOn: 17, maxRaises: 2,
+            valueLine: 0.6, boostLine: 0.6, leadLine: 0.5, callAdj: 0.02, bluff: 0.2, belief: 0.5,
+            purse: 500, ante: 15, bounty: 200
         },
         {
             id: 'spark', name: 'Sol', title: 'The Spark',
-            rule: 'Draws to 18', ruleDetail: 'Sol takes board cards and draws until 18. More of your board cards land on him — and he finishes higher.',
-            standsOn: 18, heatBonus: 0, counters: true,
-            purse: 600, minBet: 100, bounty: 400
+            rule: 'Draws to 18',
+            ruleDetail: 'Calls almost anything, takes board cards and draws until 18. Don’t bluff Sol — bet your good hands and let him pay.',
+            standsOn: 18, maxRaises: 1,
+            valueLine: 0.6, boostLine: 0.48, leadLine: 0.5, callAdj: -0.12, bluff: 0.1, belief: 0.1,
+            purse: 800, ante: 25, bounty: 400
         }
     ];
     const LADDER_STAKE = 500;
+    const DUEL_ROUNDS = 3;
+    const ANTE_STEP_HANDS = 2;
 
     function ladderRival(rung) {
         const index = Math.max(0, Math.min(ladderRivals.length - 1, Number(rung) || 0));
@@ -137,6 +138,115 @@
     /** Where a run lands after the player's stake is gone: one rung down, fresh stake. */
     function ladderFall(rung) {
         return { rung: Math.max(0, (Number(rung) || 0) - 1), stake: LADDER_STAKE };
+    }
+
+    /** The ante for a hand in a match: it steps up every three hands. */
+    function duelAnte(rival, handIndex) {
+        return rival.ante * (1 + Math.floor(Math.max(0, Number(handIndex) || 0) / ANTE_STEP_HANDS));
+    }
+
+    /** Fixed-limit bet size: one ante in the first round, two after that. */
+    function duelBetSize(ante, round) {
+        return (Number(round) || 1) <= 1 ? ante : ante * 2;
+    }
+
+    function cardsTotal(cards) {
+        let total = 0;
+        let soft = false;
+        for (const card of cards) {
+            const next = totalAfterRank(total, soft, card.rank === 'J' || card.rank === 'Q' || card.rank === 'K' ? '10' : card.rank);
+            total = next.total;
+            soft = next.soft;
+        }
+        return { total, soft };
+    }
+
+    const FULL_DECK = (() => {
+        const deck = [];
+        for (const suit of ['S', 'H', 'D', 'C']) {
+            for (const rank of ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']) deck.push({ rank, suit });
+        }
+        return deck;
+    })();
+
+    /**
+     * The dealer's estimated chance to win at showdown, from what it can see:
+     * its own cards, the board, how many private cards you hold, how many
+     * private draws you have left and how hard you have bet. It never sees the
+     * next card or your private cards; it samples them from the unseen deck.
+     * Your aggression tilts the samples toward stronger hands, by how much the
+     * rival believes a bet (belief 0..1).
+     */
+    function duelStrength({
+        dealerCards, dealerBoard, shared, playerPrivateCount = 1, privateLeft = 0,
+        standsOn = 17, aggression = 0, belief = 0, samples = 320, rng = Math.random
+    }) {
+        const seen = new Set([...dealerCards, ...shared].map(c => c.rank + c.suit));
+        const unseen = FULL_DECK.filter(c => !seen.has(c.rank + c.suit));
+        let weightSum = 0;
+        let scoreSum = 0;
+        for (let s = 0; s < samples; s++) {
+            const pile = unseen.slice();
+            const take = () => pile.splice(Math.floor(rng() * pile.length), 1)[0];
+            const player = [];
+            for (let i = 0; i < playerPrivateCount; i++) player.push(take());
+            const board = shared.slice();
+            const now = cardsTotal([...player, ...board]).total;
+            if (now > 21) continue;   // you would already have busted
+            const tilt = Math.max(-1, Math.min(1, (now - 14) / 7));
+            const weight = Math.max(0.1, 1 + belief * aggression * tilt);
+
+            const dealer = dealerCards.slice();
+            const dBoard = dealerBoard.slice();
+            let left = privateLeft;
+            let score = null;
+            while (cardsTotal([...player, ...board]).total < 17) {
+                const card = take();
+                const p = cardsTotal([...player, ...board]).total;
+                if (left > 0 && p >= 12) {
+                    player.push(card);
+                    left -= 1;
+                } else {
+                    board.push(card);
+                    if (cardsTotal([...dealer, ...dBoard]).total < standsOn) dBoard.push(card);
+                }
+                if (cardsTotal([...player, ...board]).total > 21) { score = 1; break; }
+                if (cardsTotal([...dealer, ...dBoard]).total > 21) { score = 0; break; }
+            }
+            if (score === null) {
+                const p = cardsTotal([...player, ...board]).total;
+                for (;;) {
+                    const d = cardsTotal([...dealer, ...dBoard]);
+                    const move = dealerMove({ dealerTotal: d.total, playerTotal: p, soft: d.soft, pressureAvailable: false, standsOn });
+                    if (!move.draw) break;
+                    dealer.push(take());
+                    if (cardsTotal([...dealer, ...dBoard]).total > 21) break;
+                }
+                const d = cardsTotal([...dealer, ...dBoard]).total;
+                score = d > 21 ? 0 : d > p ? 1 : d === p ? 0.5 : 0;
+            }
+            weightSum += weight;
+            scoreSum += weight * score;
+        }
+        return weightSum ? scoreSum / weightSum : 0.5;
+    }
+
+    /**
+     * Turns a strength estimate into a betting action, by personality.
+     * Not facing a bet: 'check' or 'bet'. Facing one: 'fold', 'call' or 'raise'.
+     * A small jitter keeps the thresholds from being solved exactly.
+     */
+    function duelDealerAction({ strength, facing, toCall = 0, pot = 0, rival, raisesLeft = 0, boardBoost = false, roll = Math.random(), jitter = 0 }) {
+        const value = (boardBoost ? rival.boostLine : rival.valueLine) + jitter;
+        if (!facing) {
+            if (strength >= Math.min(rival.leadLine, value) + jitter) return 'bet';
+            return roll < rival.bluff ? 'bet' : 'check';
+        }
+        if (raisesLeft > 0 && strength >= value) return 'raise';
+        const callLine = toCall / Math.max(1, pot + toCall) + rival.callAdj + jitter;
+        if (strength >= callLine) return 'call';
+        if (raisesLeft > 0 && roll < rival.bluff) return 'raise';
+        return 'fold';
     }
 
     const tableProfiles = {
@@ -404,7 +514,13 @@
         ladderRivals,
         ladderRival,
         ladderFall,
-        LADDER_STAKE
+        LADDER_STAKE,
+        DUEL_ROUNDS,
+        duelAnte,
+        duelBetSize,
+        duelStrength,
+        duelDealerAction,
+        cardsTotal
     };
     if (typeof window !== 'undefined') window.TJRules = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;

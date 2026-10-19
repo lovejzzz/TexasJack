@@ -166,11 +166,11 @@ test('round insight explains the decision that shaped the hand', () => {
     }), /breaks you first/);
 });
 
-test('ladder rivals climb in difficulty and bend one rule each', () => {
+test('ladder rivals climb in difficulty and bet with distinct personalities', () => {
     assert.equal(rules.ladderRivals.length, 3);
     const [rock, shark, spark] = rules.ladderRivals;
-    assert.equal(rock.counters, false);
-    assert.equal(shark.heatBonus, 1);
+    assert.equal(rock.bluff, 0);
+    assert.equal(shark.maxRaises, 2);
     assert.equal(spark.standsOn, 18);
     assert.ok(rock.purse < shark.purse && shark.purse < spark.purse);
     assert.equal(rules.ladderRival(99).id, 'spark');
@@ -179,4 +179,33 @@ test('ladder rivals climb in difficulty and bend one rule each', () => {
     // A dealer that draws to 18 keeps building from 17 when behind.
     assert.equal(rules.dealerMove({ dealerTotal: 17, playerTotal: 19, standsOn: 18, pressureAvailable: false }).draw, true);
     assert.equal(rules.dealerMove({ dealerTotal: 17, playerTotal: 19, pressureAvailable: false }).draw, false);
+});
+
+test('duel antes rise every two hands and bets double after the first round', () => {
+    const rock = rules.ladderRival(0);
+    assert.deepEqual([0, 1, 2, 3, 4, 6].map(i => rules.duelAnte(rock, i)), [10, 10, 20, 20, 30, 40]);
+    assert.equal(rules.duelBetSize(10, 1), 10);
+    assert.equal(rules.duelBetSize(10, 2), 20);
+    assert.equal(rules.duelBetSize(10, 3), 20);
+});
+
+test('the dealer bets its strength by personality and never bluffs as Mara', () => {
+    const [rock, shark] = rules.ladderRivals;
+    const act = (rival, strength, extra = {}) => rules.duelDealerAction({ rival, strength, facing: true, toCall: 10, pot: 30, raisesLeft: 1, roll: 0, ...extra });
+    assert.equal(act(rock, 0.9), 'raise');
+    assert.equal(act(rock, 0.5), 'call');
+    assert.equal(act(rock, 0.1), 'fold');
+    assert.equal(act(shark, 0.1), 'raise');          // roll 0 < bluff rate
+    assert.equal(act(shark, 0.1, { roll: 0.9 }), 'fold');
+    assert.equal(rules.duelDealerAction({ rival: rock, strength: 0.2, facing: false, roll: 0 }), 'check');
+    assert.equal(rules.duelDealerAction({ rival: rock, strength: 0.8, facing: false }), 'bet');
+});
+
+test('dealer strength reads a made hand above a weak one without seeing your cards', () => {
+    let seed = 3;
+    const rng = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
+    const base = { playerPrivateCount: 1, privateLeft: 2, standsOn: 17, samples: 600, rng };
+    const strong = rules.duelStrength({ ...base, dealerCards: [{ rank: '10', suit: 'S' }], dealerBoard: [{ rank: '10', suit: 'D' }], shared: [{ rank: '10', suit: 'D' }] });
+    const weak = rules.duelStrength({ ...base, dealerCards: [{ rank: '6', suit: 'S' }], dealerBoard: [{ rank: '10', suit: 'D' }], shared: [{ rank: '10', suit: 'D' }] });
+    assert.ok(strong > weak + 0.15, `${strong} vs ${weak}`);
 });

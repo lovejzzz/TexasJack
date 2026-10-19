@@ -16,41 +16,44 @@ shows it: **`Dealer 10–19 · may share your card`**. When the board runs high
 you know for certain they'll stand; when it runs low you know for certain
 they'll draw. The murky middle is where the hand is actually played.
 
-## The dealer fights back
+## A real betting duel
 
-At showdown the dealer plays against your final score rather than mindlessly
-stopping on 17. From behind they build toward your number; ahead they protect
-the lead. Pressing builds visible **Pressure** and unlocks one **Counter**:
-Pressure 1 lets the dealer chase a one- or two-point gap, Pressure 2 widens that
-range to four, and Pressure 3 can chase any gap or attack a low tie with close
-public odds. Once Counter is spent, it is gone for that hand.
+Both sides ante, then bet in fixed limits: a betting round before the draw and
+one after each card you take, up to three per hand. You act first — **check** or
+**bet**; facing a bet, **call**, **raise** or **fold**. Bets are one ante in the
+first round and two after that, so no single hand can shove a whole purse.
 
-The dealer never peeks at the next card. Its decision uses only the revealed
-scores, soft-hand state, Pressure, and public full-shoe rank odds, so the
-opponent feels responsive without cheating. If you beat a spent Counter,
-Pressure 1 pays a 30%-of-ante bounty, Pressure 2 pays 60% and Pressure 3 pays 100%. This gives a
-selective strong read a real climax while making indiscriminate pressing wake a
-more dangerous opponent.
+The dealer bets from what it can actually see: its own cards, the board, how
+many private cards you hold and how hard you've bet. It estimates its chance to
+win by sampling the cards it can't see, then acts in character. It never sees
+your private cards or the next card off the shoe. A fold ends the hand without
+showing either hand, so a bluff stays a mystery.
+
+At showdown the dealer plays against your final total: behind and under its
+stand number it draws, ahead it holds.
 
 ## The Saloon Ladder
 
-Quick Duel is a climb past three house dealers. Each one plays from a **purse**:
-every chip you win comes out of it, every chip you lose goes in. Break the purse
-(below the table minimum) to collect that dealer's bounty and move up a rung.
-Lose your stake and you're run out of town — one rung down, with a fresh $500.
+Quick Duel is a climb past three house dealers. Each is a short match: both
+sides start with chips (your stake against the dealer's purse), the ante rises
+every two hands, and whoever can't post the next ante loses. Break a purse to
+collect the bounty and move up; lose your stake and you drop a rung with a fresh
+$500. Clear all three and the ladder resets with your stake intact.
 
-| Rung | Dealer | House rule | Purse | Table min | Bounty |
-| --- | --- | --- | --- | --- | --- |
-| 1 | Mara · The Rock | Never counters — press freely | $150 | $25 | $100 |
-| 2 | Vex · The Shark | Counters one level hotter than you pressed | $300 | $50 | $200 |
-| 3 | Sol · The Spark | Takes board cards and draws until 18 | $600 | $100 | $400 |
+| Rung | Dealer | Style | House rule | Purse | Opening ante | Bounty |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Mara · The Rock | Tight and honest; her raise means a real hand | Never bluffs | $250 | $10 | $100 |
+| 2 | Vex · The Shark | Loose and aggressive, bluffs about one bet in five | Two raises a round | $500 | $15 | $200 |
+| 3 | Sol · The Spark | Calls almost anything | Draws to 18 | $800 | $25 | $400 |
 
-Each rule bends one thing, so each rung asks for a different skill: Mara teaches
-pressing, Vex punishes sitting back, and Sol turns the board into a weapon that
-cuts both ways. Clear all three and the ladder resets with your stake intact.
+Each dealer teaches one skill: bluff Mara, catch Vex, value-bet Sol. The tuning
+is measured with `npm run simulate:duel`, which plays the real dealer AI against
+a thinking player and against pure bluffing, calling and passive policies.
+A thinking player wins about 69% / 60% / 60% of matches (roughly 14 hands each);
+betting every hand loses money against all three.
 
-The first visit opens on Mara's wanted poster, then plays a short guided hand
-that shows the twist in one move.
+The first visit opens on Mara's wanted poster, then two guided hands: one shows
+a board card breaking the dealer, the other a bet that makes her fold.
 
 ## Four-seat table
 
@@ -99,39 +102,23 @@ they're pat, anything that lands on the board is marked `yours` and counts for
 you alone. You can break a dealer who's still drawing; you can't shove a
 standing dealer over the edge.
 
-## Money on the table
-
-Stand, and the dealer plays against your total. While the hand is live, every
-new card state opens one chance to back the read with **Press**, which adds to
-your live wager — up to half the ante across the hand.
-
-Press starts at 20% of the ante, narrows to 10% after the first draw, and falls
-to 5% in late windows. An unused window expires when another card is drawn.
-That is the point: commit early against a wide range for more leverage, or wait
-for a sharper read and accept a smaller bet.
-
-At settlement, a short decision note explains the line that shaped the hand.
-The **Again** button repeats the previous ante and deals immediately.
-
 ## Payouts
 
 | Result | Pays |
 | --- | --- |
-| Win | 1 : 1 |
-| Win on exactly 21 | 3 : 2 |
-| Push | Bet returned |
+| Win the hand | The pot |
+| Win on exactly 21 | +1 ante from the dealer's purse |
+| Push | The pot splits |
+| Opponent folds | The pot |
 | Break a dealer's purse | Their bounty |
-| Beat a Counter at Pressure 1 | +30% of ante |
-| Beat a Counter at Pressure 2 | +60% of ante |
-| Beat a Counter at Pressure 3 | +100% of ante |
 
 Bust over 21 and you lose, even if the same community card breaks the dealer
-too — you went over first. Pushes happen when both hands finish level.
+too — you went over first.
 
 ## Controls
 
-`↵` deal · `B` board · `H` hand · `S` stand · `R` press · `1`–`4` place chips ·
-`M` mute · `?` rules · `Esc` dismiss
+`↵` deal · `X` check · `R` bet / raise · `C` call · `F` fold · `B` board ·
+`H` hand · `S` stand · `M` mute · `?` rules · `Esc` dismiss
 
 ## Running it
 
@@ -142,24 +129,21 @@ or serve the folder:
 npx http-server .
 ```
 
-Run the zero-dependency card, shoe, table-goal, and decision-feedback tests with:
+Run the zero-dependency card, shoe, ladder and duel-betting tests with:
 
 ```bash
 npm test
 ```
 
-Run the reproducible, paired-deck dealer balance harness (50,000 hands by
-default) with:
+Tune the duel — the real dealer betting AI against thinking, bluffing, calling
+and passive players, per hand and as whole matches — with:
 
 ```bash
-npm run simulate:ai
+npm run simulate:duel
 ```
 
-Every strategy receives the same shuffled shoe for each hand, so the report can
-attribute changed outcomes to Press, Pressure, and Counter rather than shuffle
-luck. It compares no Press, opening Press, selective 18+ reads, and pressing at
-every window, including wager, Counter frequency, busts, bounty, and profit per
-ante.
+The older `npm run simulate:ai` harness still measures the classic showdown
+dealer that the rules module keeps for reference.
 
 Run the four-seat personality, pacing, Pressure, fold, and multi-bust harness
 with:
@@ -178,10 +162,12 @@ npm run simulate:table
 | `cards.js` | The deck, and every card face drawn as inline SVG |
 | `audio.js` | All sound effects, synthesised with the Web Audio API |
 | `asset/ui-icons.svg` | Custom brass-table icons for tools, decisions, and actions |
-| `rules.js` | Pure table-goal, Press, dealer-AI, and decision-feedback rules |
-| `game.js` | Game state machine, dealing, betting, settlement |
+| `rules.js` | Pure rules: ladder rivals, duel betting and dealer strength, four-seat AI |
+| `game.js` | Duel state machine: dealing, betting rounds, settlement, the ladder |
+| `western.css` | Western Noir art direction layered over `styles.css` |
 | `table-game.js` | Four-seat turn engine, AI betting, Lock, pot, and showdown |
-| `scripts/simulate-ai.cjs` | Seeded batch harness comparing fixed-17 and adaptive dealers |
+| `scripts/simulate-duel.cjs` | Seeded duel harness: dealer betting AI vs player policies |
+| `scripts/simulate-ai.cjs` | Seeded batch harness for the classic showdown dealer |
 | `scripts/simulate-table.cjs` | Seeded four-seat pacing and strategy harness |
 
 Nothing is fetched at runtime. Card faces are generated as vectors rather than
