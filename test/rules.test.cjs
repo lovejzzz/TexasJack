@@ -119,8 +119,9 @@ test('four-seat personalities make distinct decisions without seeing the next ca
 });
 
 test('table Pressure has readable call ranges and a fixed half-ante price', () => {
-    assert.equal(rules.tablePressureCost(100), 50);
-    assert.equal(rules.tablePressureCost(5), 5);
+    assert.equal(rules.tableBetSize(100, 1), 100);
+    assert.equal(rules.tableBetSize(100, 2), 200);
+    assert.equal(rules.tableBetSize(2, 1), 5);
     assert.equal(rules.tableCallDecision({ total: 19, profile: 'rock', cost: 50, pot: 400, ante: 100 }).call, true);
     assert.equal(rules.tableCallDecision({ total: 16, profile: 'rock', cost: 50, pot: 400, ante: 100 }).call, false);
     assert.equal(rules.tableCallDecision({ total: 16, profile: 'shark', cost: 50, pot: 400, ante: 100 }).call, true);

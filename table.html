@@ -149,7 +149,7 @@
         <section class="turn-panel" id="turnPanel" hidden>
             <button type="button" class="pressure-action" id="pressureBtn" disabled>
                 <span class="pressure-mark" aria-hidden="true"><svg><use href="asset/ui-icons.svg#raise"></use></svg></span>
-                <span><small>Pressure the table</small><b>Raise <em id="pressureCost">$25</em></b></span>
+                <span><small>Back your number</small><b>Bet <em id="pressureCost">$25</em></b></span>
                 <span class="pressure-note" id="pressureNote">One bet per board</span><kbd>R</kbd>
             </button>
             <div class="table-actions">
@@ -171,7 +171,7 @@
         <section class="response-panel" id="responsePanel" hidden>
             <div class="pressure-prompt">
                 <span class="pressure-pulse" aria-hidden="true"></span>
-                <span><small id="responseKicker">Vex raises</small><b id="responseText">Call $25 to stay in?</b></span>
+                <span><small id="responseKicker">Vex bets</small><b id="responseText">Call $25 to stay in?</b></span>
             </div>
             <button type="button" class="btn btn-hit" id="callBtn"><span class="btn-label">Call</span><b id="callAmount">$25</b><kbd>C</kbd></button>
             <button type="button" class="btn fold-btn" id="foldBtn"><span class="btn-label">Fold</span><small>Save the rest</small><kbd>F</kbd></button>
@@ -213,8 +213,9 @@
                 draw a private <em>Hand</em> card (two per hand), or <em>Lock</em> your total.</li>
             <li><b>Ride or Lock.</b> When anyone calls the Board, each open seat decides blind:
                 ride the card, or lock before it lands.</li>
-            <li><b>Raise or fold.</b> Once per board, a seat can raise half the ante. Call to stay
-                in. Highest total at or under 21 wins; ties split.</li>
+            <li><b>Bet, call or fold.</b> Once per board, any seat can bet — one ante on the Opening
+                board, two after the Turn — and everyone else calls or folds. Highest total at or under
+                21 wins; ties split. The first seat to act rotates every hand.</li>
         </ol>
 
         <div class="rival-guide">
@@ -223,10 +224,12 @@
             <article><span class="rival-avatar spark-avatar">✦</span><div><b>Sol · The Spark</b><p>Feeds the shared board and hunts multi-bust chaos.</p></div></article>
         </div>
 
-        <p class="shortcuts"><kbd>B</kbd> board · <kbd>H</kbd> hand · <kbd>L</kbd> lock · <kbd>R</kbd> pressure / ride · <kbd>C</kbd> call · <kbd>F</kbd> fold</p>
+        <p class="shortcuts"><kbd>B</kbd> board · <kbd>H</kbd> hand · <kbd>L</kbd> lock · <kbd>R</kbd> bet / ride · <kbd>C</kbd> call · <kbd>F</kbd> fold</p>
         <div class="modal-foot"><button type="button" class="btn btn-deal modal-cta" id="rulesGo"><span class="btn-label">Take a seat</span></button></div>
     </div>
 </div>
+
+<div class="coach" id="coach" role="status" hidden><p id="coachText"></p></div>
 
 <canvas id="fx" aria-hidden="true"></canvas>
 <script src="cards.js?v=noir-1"></script>

@@ -261,8 +261,14 @@
         }
     };
 
-    function tablePressureCost(ante) {
-        return Math.max(5, Math.round((Number(ante) || 0) * 0.50));
+    /**
+     * Four-seat bets use the same fixed limits as the duel: one ante while
+     * only the Opening board is out, two once the Turn has landed. One bet
+     * per board; the rest of the table calls or folds.
+     */
+    function tableBetSize(ante, boardCount = 1) {
+        const base = Math.max(5, Math.round(Number(ante) || 0));
+        return (Number(boardCount) || 1) <= 1 ? base : base * 2;
     }
 
     /**
@@ -504,7 +510,7 @@
         pressureGain,
         counterBounty,
         tableProfiles,
-        tablePressureCost,
+        tableBetSize,
         tableAiMove,
         tableCallDecision,
         tableBoardDecision,

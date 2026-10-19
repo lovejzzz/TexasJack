@@ -1,7 +1,6 @@
 const rules = require('../rules.js');
 
 const ANTE = 100;
-const PRESSURE = rules.tablePressureCost(ANTE);
 const MAX_BOARD_CARDS = 3;
 const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', '10', '10', '10'];
 
@@ -67,7 +66,7 @@ function humanCalls(policy, value) {
     return value >= threshold;
 }
 
-function play(sourceDeck, random, policy, selectivePressure) {
+function play(sourceDeck, random, policy, selectivePressure, firstSeat = 0) {
     const deck = [...sourceDeck];
     const draw = () => deck.pop();
     const seats = [
@@ -79,7 +78,8 @@ function play(sourceDeck, random, policy, selectivePressure) {
     const shared = [draw()];
     let pot = ANTE * 4;
     let userProfit = -ANTE;
-    let turn = 0;
+    // The first seat to act rotates each hand, like a dealer button.
+    let turn = firstSeat;
     let boardVersion = 0;
     let pressureUsedAt = null;
     let pressures = 0;
@@ -115,6 +115,7 @@ function play(sourceDeck, random, policy, selectivePressure) {
             });
 
         if (move.pressure && pressureUsedAt !== boardVersion && seats.filter(eligible).length > 1) {
+            const PRESSURE = rules.tableBetSize(ANTE, shared.length);
             pressureUsedAt = boardVersion;
             pressures += 1;
             pot += PRESSURE;
@@ -244,7 +245,7 @@ function run(hands, seed) {
     for (let i = 0; i < hands; i += 1) {
         const deck = deckFor(random);
         for (const [name, scenario] of Object.entries(scenarios)) {
-            const hand = play(deck, random, scenario.policy, scenario.pressure);
+            const hand = play(deck, random, scenario.policy, scenario.pressure, i % 4);
             const target = stats[name];
             target.wins += Number(hand.userWon);
             target.splits += Number(hand.split);
