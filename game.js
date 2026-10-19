@@ -55,7 +55,8 @@ const el = {
     playMoney: $('playMoney'),
     betControls: $('betControls'),
     overlay: $('resultOverlay'),
-    resultImage: $('resultImage'),
+    resultStamp: $('resultStamp'),
+    resultWord: $('resultWord'),
     resultPayout: $('resultPayout'),
     resultInsight: $('resultInsight'),
     rulesModal: $('rulesModal'),
@@ -1276,20 +1277,19 @@ function flyMoney(text, negative = false) {
 }
 
 function showSplash(kind, detail, insight = '', challengeWon = false) {
-    const src = { win: 'Win.png', lose: 'Lose.png', tie: 'Tie.png', bust: 'Bust.png' }[kind];
-    const alt = { win: 'You win', lose: 'You lose', tie: 'Push', bust: 'You bust' }[kind];
-    el.resultImage.src = `asset/${src}`;
-    el.resultImage.alt = alt;
+    const word = { win: 'Winner', lose: 'Beaten', tie: 'Push', bust: 'Busted' }[kind];
+    el.resultWord.textContent = word;
+    el.resultStamp.dataset.kind = kind;
     el.resultPayout.textContent = detail || '';
     el.resultPayout.classList.toggle('negative', kind === 'lose' || kind === 'bust');
     el.resultInsight.textContent = insight;
     el.resultInsight.classList.toggle('goal-cleared', challengeWon);
     el.overlay.setAttribute('aria-hidden', 'false');
     el.overlay.classList.remove('hidden');
-    // restart the CSS animation
-    el.resultImage.style.animation = 'none';
-    void el.resultImage.offsetWidth;
-    el.resultImage.style.animation = '';
+    // restart the stamp animation
+    el.resultStamp.style.animation = 'none';
+    void el.resultStamp.offsetWidth;
+    el.resultStamp.style.animation = '';
     clearTimeout(showSplash.timer);
     showSplash.timer = setTimeout(hideOverlay, 1900);
 }
@@ -1314,7 +1314,7 @@ function sizeCanvas() {
 
 function confetti(count) {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const colors = ['#f2c76a', '#ffe6a8', '#46e08b', '#ff5a5a', '#8b5bd6', '#ffffff'];
+    const colors = ['#c9a063', '#ecd29b', '#efe4cf', '#8a6a3a', '#b8432f'];
     const w = window.innerWidth;
     for (let i = 0; i < count; i++) {
         confettiPieces.push({
@@ -1366,7 +1366,7 @@ function updateStats() {
 let rulesReturnFocus = null;
 
 function rulesFocusables() {
-    return [...el.rulesModal.querySelectorAll('button:not(:disabled), [href], [tabindex]:not([tabindex="-1"])')]
+    return [...el.rulesModal.querySelectorAll('button:not(:disabled), summary, [href], [tabindex]:not([tabindex="-1"])')]
         .filter(node => !node.hidden);
 }
 

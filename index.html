@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#0b2a1f">
+    <meta name="theme-color" content="#0c0a08">
     <meta name="description" content="Texas Jack — Blackjack meets Texas Hold'em. Duel the dealer or face three distinct rivals at the four-seat table.">
     <title>Texas Jack</title>
     <link rel="icon" type="image/png" href="asset/title.png">
-    <link rel="preload" as="image" href="asset/Win.png">
-    <link rel="preload" as="image" href="asset/Lose.png">
-    <link rel="stylesheet" href="styles.css?v=stability-2">
+    <link rel="stylesheet" href="styles.css?v=noir-1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400;1,600&display=swap">
+    <link rel="stylesheet" href="western.css?v=noir-1">
 </head>
 <body>
 <div class="table">
 
     <header class="topbar">
-        <img src="asset/title.png" alt="Texas Jack" class="brand">
+        <a href="index.html" class="wordmark" aria-label="Texas Jack"><span>Texas</span><i aria-hidden="true">★</i><b>Jack</b></a>
 
         <nav class="game-switch" aria-label="Game table">
             <a href="index.html" aria-current="page">Quick Duel</a>
@@ -101,10 +103,10 @@
         <div class="bet-rail" id="betRail">
             <div class="bet-controls" id="betControls">
                 <div class="chips" id="chips">
-                    <button class="chip" data-value="5"    style="--chip:#d94f4f;--chip-dark:#8f2626" aria-label="Bet 5">5</button>
-                    <button class="chip" data-value="25"   style="--chip:#3fa564;--chip-dark:#1f6b3d" aria-label="Bet 25">25</button>
-                    <button class="chip" data-value="100"  style="--chip:#3b6fd4;--chip-dark:#22448a" aria-label="Bet 100">100</button>
-                    <button class="chip" data-value="500"  style="--chip:#8b5bd6;--chip-dark:#553288" aria-label="Bet 500">500</button>
+                    <button class="chip" data-value="5"    style="--chip:#d9ccb2;--chip-dark:#8c7b5e;--chip-ink:#2a1d12;--chip-edge:#3b2516" aria-label="Bet 5">5</button>
+                    <button class="chip" data-value="25"   style="--chip:#7d2a20;--chip-dark:#4e1711" aria-label="Bet 25">25</button>
+                    <button class="chip" data-value="100"  style="--chip:#34475a;--chip-dark:#1e2a37" aria-label="Bet 100">100</button>
+                    <button class="chip" data-value="500"  style="--chip:#1d1712;--chip-dark:#0c0907;--chip-ink:#ecd29b;--chip-edge:#c9a063" aria-label="Bet 500">500</button>
                 </div>
                 <div class="bet-meta">
                     <button class="mini-btn" id="clearBet">Clear</button>
@@ -183,7 +185,7 @@
 
 <!-- Result splash --------------------------------------------------------- -->
 <div id="resultOverlay" class="overlay hidden" role="status" aria-live="assertive" aria-atomic="true" aria-hidden="true">
-    <img id="resultImage" src="" alt="">
+    <div id="resultStamp" class="result-stamp"><small>Showdown</small><b id="resultWord">Win</b></div>
     <div id="resultPayout" class="result-payout"></div>
     <div id="resultInsight" class="result-insight"></div>
 </div>
@@ -192,9 +194,9 @@
 <div id="rulesModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
     <div class="modal-card">
         <button class="modal-close" id="rulesClose" aria-label="Close">×</button>
-        <h2 id="rulesTitle">How to play Texas Jack</h2>
-        <p class="lede">Blackjack's race to 21, played with Hold'em's shared board. The twist:
-            the card you ask for might end up helping the dealer too.</p>
+        <h2 id="rulesTitle">How to play</h2>
+        <p class="lede">Blackjack with a shared board. Get closer to 21 than the dealer &mdash;
+            but every card in the middle counts for <em>both</em> of you.</p>
         <div class="mode-switch" id="modeSwitch" role="group" aria-label="Rules variant">
             <button type="button" data-pick="classic">
                 <b>Dealer's Call</b><span>The dealer decides where your card lands</span>
@@ -204,84 +206,61 @@
             </button>
         </div>
 
-        <ol class="rules">
-            <li><strong>The deal.</strong> You get one card, the dealer gets one face down, and one
-                <em>community</em> card hits the middle. Community cards count toward
-                <em>both</em> totals.</li>
-
-            <li data-variant="classic"><strong>When you hit</strong>, the dealer reacts at the same
-                moment. If the dealer's total is under 17 they hit as well — and your card lands in
-                the community row, feeding both hands. If the dealer stands, the card is yours alone.</li>
-            <li data-variant="routed"><strong>You choose where each card goes.</strong> Send it to the
-                <em>board</em> and it counts for both hands — the way to break a dealer sitting on 16.
-                Or take it <em>to your hand</em>, where it's yours alone — but you only get two of
-                those per hand.</li>
-
-            <li><strong>Read the dealer.</strong> Their card is face down, but the board is public,
-                so their total is always pinned to a range — shown above their hand, along with what
-                they'll do next.</li>
-            <li><strong>When you stand</strong>, the dealer reveals their hand and plays against
-                your final total instead of following a fixed script.</li>
-            <li><strong>The dealer has one Counter.</strong> Once their hand is revealed, they
-                compare it with yours. Pressing creates Pressure and unlocks a wider chase range:
-                Pressure 1 chases a 1–2 point gap, Pressure 2 up to 4, and Pressure 3 can chase
-                any gap or attack a low tie with close public odds. They never see the next card.</li>
-            <li><strong>Beat the Counter, earn its bounty.</strong> Winning after a Pressure 2
-                Counter adds 50% of the ante; at Pressure 3 the bounty is 100%. More conviction
-                wakes a smarter opponent, but makes its failed challenge worth more.</li>
-            <li><strong>Press every new read.</strong> Each new card state opens one chance to
-                add to the live wager. Use it or draw again — that window expires.</li>
-            <li><strong>One table goal per hand.</strong> Clear the optional tactical objective for
-                a small bonus. It rewards different lines without punishing the hand you want to play.</li>
-            <li><strong>Press</strong> can add up to half your ante across the whole hand. The
-                opening price is strongest, then each new card reopens a smaller offer. Commit
-                early against a wide range for more leverage, or wait for a sharper but smaller bet.</li>
-            <li><strong>Scout</strong> buys a look at the top card of the shoe for a third of
-                your ante. The board already pins the dealer to a range, but nothing on the table
-                tells you what comes <em>next</em> — so it's the one thing you can't work out for
-                yourself. A known card freezes the current Press window; once that card is drawn,
-                the next window opens normally. Scout can only be bought once per hand.</li>
-            <li><strong>A pat dealer stands aside.</strong> Community cards only count for the
-                dealer while they're under 17. Once they're pat, anything that lands on the board
-                is marked <em>yours</em> and counts for you alone.</li>
-            <li><strong>Bust</strong> over 21 and you lose — even when the same community card
-                breaks the dealer too. You went over first.</li>
+        <ol class="steps">
+            <li><b>Read the board.</b> You and the dealer each hold one private card. The dealer's
+                is face down, but the board pins them to a range.</li>
+            <li data-variant="classic"><b>Hit or stand.</b> If the dealer is under 17, your hit lands
+                on the board and feeds you both. On 17 or more, the card is yours alone.</li>
+            <li data-variant="routed"><b>Board or Hand.</b> Send a card to the <em>board</em> to push the
+                dealer, or keep it in your <em>hand</em> &mdash; twice per hand.</li>
+            <li><b>Stand and show down.</b> The dealer flips and plays to beat you. Bust and you lose,
+                even if they bust too.</li>
         </ol>
-        <h3>Payouts</h3>
-        <ul class="payouts">
-            <li><span>Win</span><b>1 : 1</b></li>
-            <li><span>Win on exactly 21</span><b>3 : 2</b></li>
-            <li><span>Push</span><b>bet returned</b></li>
-            <li><span>Hot streak (3+ wins)</span><b>+25% bonus</b></li>
-            <li><span>Table goal</span><b>+10% of ante</b></li>
-            <li><span>Counter bounty</span><b>+50% / +100% of ante</b></li>
-            <li><span>Scout the shoe</span><b>costs a third of the ante</b></li>
-        </ul>
-        <h3>This session</h3>
-        <ul class="stats" id="sessionStats">
-            <li><b id="statHands">0</b><span>hands</span></li>
-            <li><b id="statWins">0</b><span>wins</span></li>
-            <li><b id="statRate">—</b><span>win rate</span></li>
-            <li><b id="statBest">$1,000</b><span>peak bankroll</span></li>
-        </ul>
 
-        <p class="shortcuts">
-            <kbd>↵</kbd> deal ·
-            <span data-variant="classic"><kbd>H</kbd> hit</span>
-            <span data-variant="routed"><kbd>B</kbd> board · <kbd>H</kbd> hand</span> ·
-            <kbd>S</kbd> stand · <kbd>R</kbd> press · <kbd>P</kbd> scout ·
-            <kbd>M</kbd> mute · <kbd>?</kbd> rules</p>
+        <details class="more">
+            <summary>Betting extras</summary>
+            <ul class="rules">
+                <li><strong>Press</strong> adds to your bet after a new card. The earlier you press,
+                    the bigger the offer.</li>
+                <li><strong>Scout</strong> costs a third of your ante and shows the next card. Once per hand.</li>
+                <li><strong>Counter.</strong> Pressing makes the dealer bolder: they may draw once more to
+                    chase you. Beat it and earn a bounty of <em>+50%</em> or <em>+100%</em> of the ante.</li>
+                <li><strong>Table goal</strong> is an optional objective worth <em>+10%</em> of the ante.</li>
+            </ul>
+        </details>
+
+        <details class="more">
+            <summary>Payouts &amp; session</summary>
+            <ul class="payouts">
+                <li><span>Win</span><b>1 : 1</b></li>
+                <li><span>Win on exactly 21</span><b>3 : 2</b></li>
+                <li><span>Push</span><b>bet returned</b></li>
+                <li><span>Hot streak (3+ wins)</span><b>+25%</b></li>
+            </ul>
+            <ul class="stats" id="sessionStats">
+                <li><b id="statHands">0</b><span>hands</span></li>
+                <li><b id="statWins">0</b><span>wins</span></li>
+                <li><b id="statRate">—</b><span>win rate</span></li>
+                <li><b id="statBest">$1,000</b><span>peak bankroll</span></li>
+            </ul>
+            <p class="shortcuts">
+                <kbd>↵</kbd> deal ·
+                <span data-variant="classic"><kbd>H</kbd> hit</span>
+                <span data-variant="routed"><kbd>B</kbd> board · <kbd>H</kbd> hand</span> ·
+                <kbd>S</kbd> stand · <kbd>R</kbd> press · <kbd>P</kbd> scout ·
+                <kbd>M</kbd> mute · <kbd>?</kbd> rules</p>
+        </details>
         <div class="modal-foot">
-            <button class="btn btn-deal modal-cta" id="rulesGo">Got it</button>
+            <button class="btn btn-deal modal-cta" id="rulesGo">Deal me in</button>
         </div>
     </div>
 </div>
 
 <canvas id="fx" aria-hidden="true"></canvas>
 
-<script src="cards.js"></script>
-<script src="audio.js?v=stability-2"></script>
-<script src="rules.js?v=stability-2"></script>
-<script src="game.js?v=stability-2"></script>
+<script src="cards.js?v=noir-1"></script>
+<script src="audio.js?v=noir-1"></script>
+<script src="rules.js?v=noir-1"></script>
+<script src="game.js?v=noir-1"></script>
 </body>
 </html>

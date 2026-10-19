@@ -1009,7 +1009,7 @@ function sizeCanvas() {
 
 function confetti(count) {
     if (reducedMotion()) return;
-    const colors = ['#f2c76a', '#ffe6a8', '#46e08b', '#ff7a54', '#8b5bd6'];
+    const colors = ['#c9a063', '#ecd29b', '#efe4cf', '#8a6a3a', '#b8432f'];
     for (let i = 0; i < count; i += 1) {
         pieces.push({
             x: window.innerWidth * (.25 + Math.random() * .5),
