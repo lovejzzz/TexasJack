@@ -4,6 +4,7 @@
   "scripts": {
     "test": "node --test",
     "simulate:ai": "node scripts/simulate-ai.cjs",
-    "simulate:table": "node scripts/simulate-table.cjs"
+    "simulate:table": "node scripts/simulate-table.cjs",
+    "simulate:duel": "node scripts/simulate-duel.cjs"
   }
 }

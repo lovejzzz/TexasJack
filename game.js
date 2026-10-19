@@ -1,19 +1,21 @@
 /* ==========================================================================
    Texas Jack — game.js
-   Blackjack's race to 21 played on a Hold'em board.
+   Blackjack's race to 21 on a Hold'em board, played as a heads-up duel with
+   real betting against the three dealers of the Saloon Ladder.
    ========================================================================== */
 
 const { Deck, cardFaceSVG, cardBackSVG, handTotal } = window.TJCards;
 const {
-    pressOffer,
-    pressureGain,
-    counterBounty,
     dealerMove,
-    decisionInsight,
     ladderRivals,
     ladderRival,
     ladderFall,
-    LADDER_STAKE
+    LADDER_STAKE,
+    DUEL_ROUNDS,
+    duelAnte,
+    duelBetSize,
+    duelStrength,
+    duelDealerAction
 } = window.TJRules;
 
 /* ---- DOM ----------------------------------------------------------------- */
@@ -35,30 +37,33 @@ const el = {
     status: $('status'),
     shoeCount: $('shoeCount'),
     shoe: $('shoe'),
-    chips: $('chips'),
-    clearBet: $('clearBet'),
-    maxBet: $('maxBet'),
-    rebet: $('rebet'),
+    actionsRow: document.querySelector('.actions'),
     dealBtn: $('dealBtn'),
     dealLabel: $('dealLabel'),
-    hitBtn: $('hitBtn'),
-    standBtn: $('standBtn'),
+    checkBtn: $('checkBtn'),
+    betBtn: $('betBtn'),
+    betLabel: $('betLabel'),
+    callBtn: $('callBtn'),
+    callLabel: $('callLabel'),
     raiseBtn: $('raiseBtn'),
-    raiseAmt: $('raiseAmt'),
-    raiseDetail: $('raiseDetail'),
-    playMoney: $('playMoney'),
+    raiseLabel: $('raiseLabel'),
+    foldBtn: $('foldBtn'),
+    boardBtn: $('boardBtn'),
+    handBtn: $('handBtn'),
+    handLeft: $('handLeft'),
+    standBtn: $('standBtn'),
     dealerName: $('dealerName'),
     rivalAvatar: $('rivalAvatar'),
+    rivalSay: $('rivalSay'),
     houseRule: $('houseRule'),
     purseValue: $('purseValue'),
     purseBar: $('purseBar'),
-    tableMin: $('tableMin'),
+    matchInfo: $('matchInfo'),
+    roundInfo: $('roundInfo'),
     poster: $('poster'),
     posterCard: $('posterCard'),
     coach: $('coach'),
     coachText: $('coachText'),
-    actionsRow: document.querySelector('.actions'),
-    betControls: $('betControls'),
     overlay: $('resultOverlay'),
     resultStamp: $('resultStamp'),
     resultWord: $('resultWord'),
@@ -72,11 +77,6 @@ const el = {
     soundLabel: $('soundLabel'),
     fx: $('fx'),
     dealerRead: $('dealerRead'),
-    dealerCounter: $('dealerCounter'),
-    dealerPressure: $('dealerPressure'),
-    boardBtn: $('boardBtn'),
-    handBtn: $('handBtn'),
-    handLeft: $('handLeft'),
     statHands: $('statHands'),
     statWins: $('statWins'),
     statRate: $('statRate'),
@@ -91,22 +91,29 @@ const laneOf = {
 
 /* ---- Constants ----------------------------------------------------------- */
 
-const PERFECT_MULTIPLIER = 1.5;   // win on exactly 21 pays 3:2
-const PRIVATE_DRAWS = 2;          // "Your Call" mode: cards you may keep to yourself
+const PRIVATE_DRAWS = 2;          // cards you may keep to yourself each hand
+
 /* Every rank a face-down card could be, as a hand value. */
 const UNKNOWN_RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'A'];
 
-const PHASE = { BET: 'bet', DEALING: 'dealing', PLAYER: 'player', RESOLVING: 'resolving', OVER: 'over' };
+const PHASE = {
+    BET: 'bet',             // between hands
+    DEALING: 'dealing',
+    BETTING: 'betting',     // your turn in a betting round
+    PLAYER: 'player',       // your turn to draw or stand
+    RESOLVING: 'resolving',
+    OVER: 'over'
+};
 
 /* ---- State --------------------------------------------------------------- */
 
 const save = {
     read() {
-        try { return JSON.parse(localStorage.getItem('tj.ladder')) || {}; }
+        try { return JSON.parse(localStorage.getItem('tj.duel')) || {}; }
         catch { return {}; }
     },
     write(data) {
-        try { localStorage.setItem('tj.ladder', JSON.stringify(data)); } catch { /* private mode */ }
+        try { localStorage.setItem('tj.duel', JSON.stringify(data)); } catch { /* private mode */ }
     }
 };
 
@@ -117,10 +124,7 @@ function savedCount(value, fallback = 0) {
 }
 
 const savedRung = Math.min(ladderRivals.length - 1, savedCount(persisted.rung));
-const savedStake = savedCount(persisted.stake, LADDER_STAKE);
-const savedPurse = savedCount(persisted.purse, ladderRival(savedRung).purse);
 const savedHands = savedCount(persisted.hands);
-const savedWins = Math.min(savedHands, savedCount(persisted.wins));
 
 const game = {
     deck: new Deck(),
@@ -129,65 +133,71 @@ const game = {
     shared: [],
     dealerBoard: [],
     phase: PHASE.BET,
-    bankroll: savedStake,
+    bankroll: savedCount(persisted.stake, LADDER_STAKE),
     rung: savedRung,
-    purse: Math.min(savedPurse, ladderRival(savedRung).purse) || ladderRival(savedRung).purse,
+    purse: savedCount(persisted.purse, ladderRival(savedRung).purse),
+    matchHand: savedCount(persisted.matchHand),
     cleared: savedCount(persisted.cleared),
     tutorialDone: !!persisted.tutorialDone,
     tutorialStep: null,
     ladderEvent: null,
-    bet: 0,
-    lastBet: savedCount(persisted.lastBet),
     ante: 0,
-    moneyAction: null,
-    raisedAtDraw: null,
-    pressedAtDraw: null,
-    pressTotal: 0,
+    playerIn: 0,
+    dealerIn: 0,
+    round: 0,
+    raises: 0,
+    facing: false,
+    betResolve: null,
+    aggression: 0,
+    boardBoost: false,
     drawsTaken: 0,
     boardBrokeDealer: false,
     dealerRevealed: false,
-    dealerCounter: 1,
-    counterUsed: false,
-    pressure: 0,
     dealerIntent: null,
+    lastDealerBet: null,
+    handStartStake: 0,
+    practice: false,
+    settled: true,
     hands: savedHands,
-    wins: savedWins,
-    best: Math.max(savedStake, savedCount(persisted.best, savedStake)),
+    wins: Math.min(savedHands, savedCount(persisted.wins)),
+    best: Math.max(LADDER_STAKE, savedCount(persisted.best, LADDER_STAKE)),
     seen: !!persisted.seen,
-    // Your Call is the game: you route every card. Dealer's Call survives only
-    // in the shared rules for the simulator and tests.
-    mode: 'routed',
     privateLeft: PRIVATE_DRAWS
 };
 
-const routed = () => true;
 /** The house dealer on the current rung of the ladder. */
 const rival = () => ladderRival(game.rung);
 /** The total this dealer stands on — and takes board cards below. */
 const standsOn = () => rival().standsOn;
-/** The rival can only cover what is left in their purse. */
-const maxBet = () => Math.max(0, Math.min(game.bankroll + game.bet, game.purse));
+/** This hand's ante, or the next hand's between hands. */
+const currentAnte = () => duelAnte(rival(), game.matchHand);
+const pot = () => game.playerIn + game.dealerIn;
 
-// A save from before a fall (or an old build) can leave too little to sit
-// down with; that run is over, so start the player one rung lower.
-if (game.bankroll < rival().minBet) {
+// A save that cannot sit down any more (or an old build's) starts fresh at
+// the right table: a broke stake falls a rung, an empty purse refills.
+if (game.purse > rival().purse || game.purse < currentAnte()) {
+    game.purse = rival().purse;
+    game.matchHand = 0;
+}
+if (game.bankroll < currentAnte()) {
     const fall = ladderFall(game.rung);
     game.rung = fall.rung;
     game.bankroll = fall.stake;
     game.purse = rival().purse;
+    game.matchHand = 0;
 }
 
 function persist() {
-    // Chips on the betting line are still yours; chips in a live hand are
-    // committed, so a reload forfeits that hand rather than refunding it.
-    const betting = game.phase === PHASE.BET;
+    // Chips in a live pot are committed: a reload forfeits the hand to the
+    // dealer instead of refunding it.
+    const live = game.phase !== PHASE.BET && game.phase !== PHASE.OVER;
     save.write({
-        stake: game.bankroll + (betting ? game.bet : 0),
+        stake: game.bankroll,
         rung: game.rung,
-        purse: game.purse,
+        purse: game.purse + (live ? pot() : 0),
+        matchHand: game.matchHand + (live && !game.practice ? 1 : 0),
         cleared: game.cleared,
         tutorialDone: game.tutorialDone,
-        lastBet: game.lastBet,
         hands: game.hands,
         wins: game.wins,
         best: game.best,
@@ -201,7 +211,7 @@ const sleep = ms => new Promise(res => setTimeout(res, ms));
 const playerTotal = () => handTotal(game.player, game.shared);
 /**
  * The dealer's total counts only the board cards they took while still under
- * 17. A dealer who is already pat cannot be forced to break by a card the
+ * their stand number. A pat dealer cannot be forced to break by a card the
  * player shoves onto the board.
  */
 const dealerTotal = () => handTotal(game.dealer, game.dealerBoard);
@@ -379,21 +389,16 @@ function dealerRange() {
 
 /** What the range implies the dealer will do, phrased for the active variant. */
 function dealerTell(range) {
-    if (!range) return { text: 'stands on 17', tone: '' };
+    if (!range) return { text: `stands on ${standsOn()}`, tone: '' };
     if (range.min > 21) return { text: 'busted', tone: 'tell-pat' };
 
     const mustHit = range.max < standsOn();
     const mustStand = range.min >= standsOn();
 
     // Kept short so the read still fits beside the pill on a phone.
-    if (routed()) {
-        if (mustHit) return { text: 'will draw', tone: 'tell-hit' };
-        if (mustStand) return { text: 'pat — done drawing', tone: 'tell-pat' };
-        return { text: 'may draw', tone: 'tell-maybe' };
-    }
-    if (mustHit) return { text: 'will share your card', tone: 'tell-hit' };
-    if (mustStand) return { text: 'card stays yours', tone: 'tell-pat' };
-    return { text: 'may share your card', tone: 'tell-maybe' };
+    if (mustHit) return { text: 'will take board cards', tone: 'tell-hit' };
+    if (mustStand) return { text: 'pat — done drawing', tone: 'tell-pat' };
+    return { text: 'may take board cards', tone: 'tell-maybe' };
 }
 
 function updateTotals() {
@@ -421,16 +426,6 @@ function updateTotals() {
         : dealerTell(inPlay && !game.dealerRevealed ? dealerRange() : null);
     el.dealerRead.textContent = tell.text;
     el.dealerRead.className = 'lane-hint' + (tell.tone ? ' ' + tell.tone : '');
-    el.dealerCounter.classList.toggle('spent', game.dealerCounter <= 0);
-    el.dealerCounter.classList.toggle('locked', game.pressure <= 0 || !rival().counters);
-    el.dealerCounter.textContent = game.pressure <= 0
-        ? 'Counter locked'
-        : game.dealerCounter > 0 ? 'Counter 1' : 'Counter 0';
-    el.dealerCounter.setAttribute('aria-label', game.pressure <= 0
-        ? 'Dealer counter locked until the player presses'
-        : game.dealerCounter > 0 ? 'Dealer counter available' : 'Dealer counter spent');
-    el.dealerPressure.textContent = `Pressure ${game.pressure}`;
-    el.dealerPressure.dataset.level = game.pressure;
 }
 
 function updateShoe() {
@@ -443,7 +438,7 @@ function updateMoney(bump = false) {
     // Any direct state render supersedes a counter animation already in flight.
     [el.bankroll, el.pot].forEach(node => { node._moneyAnimation = (node._moneyAnimation || 0) + 1; });
     el.bankroll.textContent = money(game.bankroll);
-    el.pot.textContent = money(game.bet);
+    el.pot.textContent = money(pot());
     el.streak.textContent = `${game.rung + 1} / ${ladderRivals.length}`;
     renderRival();
     if (bump) {
@@ -453,7 +448,7 @@ function updateMoney(bump = false) {
     }
 }
 
-/** The dealer lane carries the current rival: portrait, house rule, purse. */
+/** The dealer lane carries the current rival: portrait, house rule, purse, match clock. */
 function renderRival() {
     const r = rival();
     el.dealerName.textContent = r.name;
@@ -461,7 +456,13 @@ function renderRival() {
     el.houseRule.textContent = r.rule;
     el.purseValue.textContent = money(game.purse);
     el.purseBar.style.transform = `scaleX(${Math.max(0, Math.min(1, game.purse / r.purse))})`;
-    el.tableMin.textContent = `Table min ${money(r.minBet)}`;
+    const handNo = Math.max(1, game.phase === PHASE.OVER && !game.practice ? game.matchHand : game.matchHand + 1);
+    const ante = duelAnte(r, handNo - 1);
+    const untilRise = 2 - ((handNo - 1) % 2);
+    el.matchInfo.textContent = `Hand ${handNo} · ante ${money(ante)} · ${untilRise === 1 ? 'rises next hand' : `rises in ${untilRise}`}`;
+    el.roundInfo.textContent = game.round && game.phase !== PHASE.BET && game.phase !== PHASE.OVER
+        ? `Betting round ${Math.min(game.round, DUEL_ROUNDS)} of ${DUEL_ROUNDS}`
+        : '';
     laneOf.dealer.dataset.rival = r.id;
 }
 
@@ -477,182 +478,221 @@ function highlightLane(which) {
     if (which) laneOf[which].classList.add('active');
 }
 
+/* ---- Rival voice --------------------------------------------------------- */
+
+const LINES = {
+    rock: {
+        bet: ['I’ll put a little on it.', 'Worth the lamp oil.'],
+        raise: ['I’m raising. Think hard.', 'No. More.'],
+        call: ['I’ll see it.', 'Fine. Show me.'],
+        check: ['Check.', 'Go on.'],
+        fold: ['Not worth it.', 'Take it. I’ll wait.'],
+        win: ['Steady wins.', 'Patience pays.'],
+        lose: ['Hm. Well played.', 'That one’s yours.'],
+        half: ['Mara straightens her hat.'],
+        rise: ['The lamp’s burning low.']
+    },
+    shark: {
+        bet: ['Let’s see if you scare.', 'A little something.'],
+        raise: ['Raise. Your move, friend.', 'Again.'],
+        call: ['Call. I don’t believe you.', 'Sure, I’ll look.'],
+        check: ['Your turn to be brave.', 'Check.'],
+        fold: ['Keep it. I’ll take the next.', 'Lucky.'],
+        win: ['Never trust a smile.', 'Too easy.'],
+        lose: ['Enjoy it while it lasts.', 'Hm.'],
+        half: ['Vex stops smiling.'],
+        rise: ['Stakes go up. Keep up.']
+    },
+    spark: {
+        bet: ['Let’s ride!', 'Bet. Why not?'],
+        raise: ['Ha! Raise!', 'More!'],
+        call: ['Call! I gotta see it.', 'Always calling.'],
+        check: ['Check, check.', 'Go ahead.'],
+        fold: ['Ugh, fine.', 'Even I know when to quit.'],
+        win: ['The Spark strikes!', 'Told you.'],
+        lose: ['Ah, that stings!', 'Next one’s mine.'],
+        half: ['Sol loosens his bandana.'],
+        rise: ['Higher stakes, more fun!']
+    }
+};
+
+/** A short line in the rival's speech bubble. */
+function say(kind) {
+    const lines = LINES[rival().id][kind];
+    if (!lines) return;
+    el.rivalSay.textContent = lines[Math.floor(Math.random() * lines.length)];
+    el.rivalSay.hidden = false;
+    el.rivalSay.classList.remove('pop');
+    void el.rivalSay.offsetWidth;
+    el.rivalSay.classList.add('pop');
+    clearTimeout(say.timer);
+    say.timer = setTimeout(() => { el.rivalSay.hidden = true; }, 2400);
+}
+
 /* ---- Controls ------------------------------------------------------------ */
+
+/** What your next bet or raise would cost, given what each side can still put in. */
+function betAmounts() {
+    const unit = duelBetSize(game.ante, Math.max(1, game.round));
+    const toCall = Math.max(0, game.dealerIn - game.playerIn);
+    const call = Math.min(toCall, game.bankroll);
+    const raiseTo = Math.min(game.bankroll, toCall + unit, toCall + game.purse);
+    return { unit, toCall, call, raise: raiseTo };
+}
+
+function show(btn, visible, enabled = visible) {
+    btn.hidden = !visible;
+    btn.disabled = !enabled;
+}
 
 function syncControls() {
     const betting = game.phase === PHASE.BET;
-    const playing = game.phase === PHASE.PLAYER;
+    const deciding = game.phase === PHASE.BETTING;
+    const drawing = game.phase === PHASE.PLAYER;
+    const r = rival();
+    const step = game.tutorialStep;
 
-    const room = maxBet() - game.bet;
-    el.chips.querySelectorAll('.chip').forEach(chip => {
-        chip.disabled = !betting || room <= 0 || game.bankroll <= 0;
-    });
-    el.clearBet.disabled = !betting || game.bet === 0;
-    el.maxBet.disabled = !betting || room <= 0 || game.bankroll === 0;
-    el.rebet.disabled = !betting || game.lastBet < rival().minBet || game.lastBet > maxBet();
+    show(el.dealBtn, betting, betting && game.bankroll >= currentAnte());
+    el.dealLabel.textContent = `Deal · ante ${money(currentAnte())}`;
 
-    el.dealBtn.disabled = !betting || game.bet < rival().minBet;
-    el.standBtn.disabled = !playing;
+    const { unit, call, raise, toCall } = betAmounts();
+    const canRaise = deciding && game.facing && game.raises < r.maxRaises
+        && game.purse > 0 && game.bankroll > toCall;
+    show(el.checkBtn, deciding && !game.facing);
+    show(el.betBtn, deciding && !game.facing, deciding && !game.facing && game.bankroll > 0 && game.purse > 0);
+    show(el.foldBtn, deciding && game.facing);
+    show(el.callBtn, deciding && game.facing);
+    show(el.raiseBtn, deciding && game.facing, canRaise);
+    el.betLabel.textContent = `Bet ${money(Math.min(unit, game.bankroll, game.purse))}`;
+    el.callLabel.textContent = call < toCall ? `All in ${money(call)}` : `Call ${money(call)}`;
+    el.raiseLabel.textContent = `Raise ${money(Math.max(0, raise - toCall))}`;
 
-    el.hitBtn.hidden = routed();
-    el.boardBtn.hidden = !routed();
-    el.handBtn.hidden = !routed();
     // On 21 another card can only hurt you, so Stand is the one move left.
-    const drawable = playing && playerTotal().total < 21;
-    el.hitBtn.disabled = !drawable;
-    el.boardBtn.disabled = !drawable;
-    el.handBtn.disabled = !drawable || game.privateLeft <= 0;
+    const drawable = drawing && playerTotal().total < 21;
+    show(el.boardBtn, drawing, drawable);
+    show(el.handBtn, drawing, drawable && game.privateLeft > 0);
+    show(el.standBtn, drawing);
     el.handLeft.textContent = game.privateLeft;
 
-    // The guided first hand allows exactly the move it is teaching.
-    if (game.tutorialStep === 'board') {
-        el.handBtn.disabled = true;
-        el.standBtn.disabled = true;
-    }
+    // The guided hands allow exactly the move they teach.
+    if (step === 'h1-check') { el.betBtn.disabled = true; }
+    if (step === 'h1-board') { el.handBtn.disabled = true; el.standBtn.disabled = true; }
+    if (step === 'h2-bet') { el.checkBtn.disabled = true; }
 
-    // The money row swaps between placing a bet and acting on one.
-    const inHand = !betting && game.phase !== PHASE.OVER;
-    el.betControls.hidden = inHand;
-    el.playMoney.hidden = !inHand;
+    // Mid-hand, keep the row from collapsing while the dealer thinks.
+    el.actionsRow.dataset.waiting = String(!betting && !deciding && !drawing);
+}
 
-    const offer = currentPressOffer();
-    el.raiseBtn.disabled = !playing || offer.amount <= 0 || game.tutorialStep === 'board';
-    el.raiseAmt.textContent = offer.amount > 0 ? '+' + money(offer.amount) : '—';
-    el.raiseBtn.classList.toggle('attention', playing && offer.amount > 0);
-    el.raiseBtn.classList.toggle('committed', game.pressTotal > 0);
-    if (offer.locked) {
-        el.raiseDetail.textContent = 'Known card locked · draw it to reopen';
-    } else if (offer.usedThisWindow) {
-        el.raiseDetail.textContent = `Read backed · ${money(offer.remaining)} leverage remains`;
-    } else if (offer.maxed) {
-        el.raiseDetail.textContent = `Fully committed · +${money(game.pressTotal)} this hand`;
-    } else if (offer.amount > 0) {
-        const timing = game.drawsTaken === 0 ? 'opening price' : game.drawsTaken < 3 ? 'window narrowed' : 'final price';
-        el.raiseDetail.textContent = `${money(offer.remaining)} leverage left · ${timing}`;
+/* ---- Chips --------------------------------------------------------------- */
+
+/** Moves chips from a side into the pot, capped by what that side holds. */
+function commit(who, amount) {
+    const paid = Math.max(0, Math.min(amount, who === 'player' ? game.bankroll : game.purse));
+    if (paid <= 0) return 0;
+    const potBefore = pot();
+    if (who === 'player') {
+        const before = game.bankroll;
+        game.bankroll -= paid;
+        game.playerIn += paid;
+        animateMoneyValue(el.bankroll, before, game.bankroll, 280);
+        animateBetTransfer(el.bankroll.closest('.readout'), potBefore, pot());
     } else {
-        el.raiseDetail.textContent = game.bankroll <= 0 ? 'No bankroll available' : 'Next card reopens the window';
+        game.purse -= paid;
+        game.dealerIn += paid;
+        animateBetTransfer(el.rivalAvatar, potBefore, pot());
     }
-    el.dealLabel.textContent = 'Deal';
-    // Betting shows Deal alone; a live hand shows only the moves.
-    el.actionsRow.dataset.phase = betting ? 'bet' : 'hand';
-}
-
-/* ---- Betting ------------------------------------------------------------- */
-
-function addToBet(amount, origin = null) {
-    if (game.phase !== PHASE.BET) return;
-    const before = game.bet;
-    const bankBefore = game.bankroll;
-    const wager = Math.min(amount, game.bankroll, maxBet() - game.bet);
-    if (wager <= 0) {
-        setStatus(`${rival().name}'s purse only covers <b>${money(maxBet())}</b>.`);
-        return;
-    }
-    game.bankroll -= wager;
-    game.bet += wager;
     SFX.chip();
-    updateMoney();
-    animateMoneyValue(el.bankroll, bankBefore, game.bankroll, 280);
-    animateBetTransfer(origin, before, game.bet);
-    syncControls();
-    const short = rival().minBet - game.bet;
-    setStatus(short > 0
-        ? `Wager: <b>${money(game.bet)}</b> — the table minimum is ${money(rival().minBet)}.`
-        : `Wager: <b>${money(game.bet)}</b> — press Deal when you're ready.`);
-    if (game.tutorialStep === 'bet' && short <= 0) coach(el.dealBtn, 'Now <b>Deal</b>.');
-}
-
-function clearBet() {
-    if (game.phase !== PHASE.BET || game.bet === 0) return;
-    game.bankroll += game.bet;
-    game.bet = 0;
-    SFX.chip();
-    updateMoney();
-    syncControls();
-    setStatus('Bet cleared. Place your bet to begin.');
+    renderRival();
+    return paid;
 }
 
 /* ---- Round flow ---------------------------------------------------------- */
 
-async function startRound() {
+async function startHand() {
     if (game.phase !== PHASE.BET) return;
+    const r = rival();
+    const ante = currentAnte();
+    if (game.bankroll < ante) return;
 
-    if (game.bet < rival().minBet) {
-        setStatus(`${rival().name} won't deal for less than <b>${money(rival().minBet)}</b>.`);
-        return;
-    }
-
-    game.lastBet = game.bet;
     game.phase = PHASE.DEALING;
+    coach(null);
     game.player = [];
     game.dealer = [];
     game.shared = [];
     game.dealerBoard = [];
-    game.ante = game.bet;
-    game.moneyAction = null;
-    game.raisedAtDraw = null;
-    game.pressedAtDraw = null;
-    game.pressTotal = 0;
+    game.ante = ante;
+    game.playerIn = 0;
+    game.dealerIn = 0;
+    game.round = 0;
+    game.raises = 0;
+    game.aggression = 0;
+    game.boardBoost = false;
     game.drawsTaken = 0;
     game.boardBrokeDealer = false;
     game.dealerRevealed = false;
-    game.dealerCounter = 1;
-    game.counterUsed = false;
-    game.pressure = 0;
     game.dealerIntent = null;
+    game.lastDealerBet = null;
     game.privateLeft = PRIVATE_DRAWS;
+    game.handStartStake = game.bankroll;
+    // The guided hands are practice: they don't move the match clock.
+    game.practice = game.tutorialStep === 'h1-deal' || game.tutorialStep === 'h2-deal';
     game.deck.reset();
-    const guided = game.tutorialStep === 'bet';
-    if (guided) {
-        // The first hand is stacked to show the twist in one move: you sit on
-        // 9, the dealer on 14, and the next card is a ten. On the board it
-        // lands in both hands — 19 for you, 24 for the dealer.
+
+    if (game.tutorialStep === 'h1-deal') {
+        // Guided hand one: you sit on 9, the dealer on 14, and the next card is
+        // a ten. On the board it lands in both hands — 19 for you, 24 for her.
         rigDeck([['4', 'C'], ['9', 'S'], ['5', 'D'], ['K', 'H']]);
-        coach(null);
+        game.tutorialStep = 'h1-check';
+    } else if (game.tutorialStep === 'h2-deal') {
+        // Guided hand two: you hold 20 and the dealer can only show a range.
+        rigDeck([['10', 'S'], ['6', 'H'], ['Q', 'D']]);
+        game.tutorialStep = 'h2-bet';
     }
-    persist();
 
     clearTable();
     hideOverlay();
     syncControls();
     updateShoe();
-    setStatus('Dealing…');
+    setStatus(`Antes in — ${money(ante)} each.`);
+    commit('player', ante);
+    commit('dealer', ante);
+    persist();
 
     await dealTo(game.player, el.playerCards, drawCard());
     await dealTo(game.dealer, el.dealerCards, drawCard(), { faceDown: true });
-    // Routed through layOnBoard so the opening community card obeys the same
-    // "dealer takes it only while under 17" rule as every later one.
     await layOnBoard(drawCard());
     highlightLane(null);
-
-    game.phase = PHASE.PLAYER;
     updateTotals();
-    syncControls();
-    highlightLane('player');
 
-    const p = handTotal(game.player, game.shared);
-    if (guided) {
-        game.tutorialStep = 'board';
-        syncControls();
-        setStatus('The middle card counts for <b>both</b> of you.');
-        coach(el.boardBtn, `You're on 9 and can't bust. ${rival().name} is under 17, so every <b>Board</b> card lands in her hand too. Send one.`);
-    } else if (p.total === 21) {
-        setStatus('Twenty-one off the deal — <b>Stand</b> and collect.');
-    } else if (routed()) {
-        setStatus('Your move — card to the <b>Board</b> or to your <b>Hand</b>.');
-    } else {
-        setStatus('Your move — <b>Hit</b>, <b>Stand</b>, or <b>Press</b>.');
+    const folded = await bettingRound();
+    if (folded) return foldWin(folded);
+    toDrawing();
+}
+
+/** After a betting round, the hand goes back to you: draw or stand. */
+function toDrawing() {
+    game.phase = PHASE.PLAYER;
+    highlightLane('player');
+    if (game.tutorialStep === 'h1-board') {
+        coach(el.boardBtn, `${rival().name} is under 17, so every <b>Board</b> card lands in her hand too. You're on 9 and can't bust — send one.`);
     }
+    syncControls();
+    const p = playerTotal().total;
+    const left = DUEL_ROUNDS - game.round;
+    if (p === 21) setStatus('Twenty-one — <b>Stand</b> and collect.');
+    else setStatus(`Your move — <b>Board</b>, <b>Hand</b> or <b>Stand</b>.${left > 0 ? ` ${left} betting round${left > 1 ? 's' : ''} left.` : ''}`);
 }
 
 /**
  * Puts a drawn card on the board. The dealer only picks it up if they were
- * still under 17 when it landed — a pat dealer stands aside, and the card
- * belongs to the player alone.
+ * still under their stand number when it landed — a pat dealer stands aside,
+ * and the card belongs to the player alone.
  */
 async function layOnBoard(card) {
-    const dealerTakes = dealerTotal().total < standsOn();
+    const before = dealerTotal().total;
+    const dealerTakes = before < standsOn();
     if (dealerTakes) game.dealerBoard.push(card);
+    game.boardBoost = dealerTakes && dealerTotal().total > before && dealerTotal().total <= 21;
 
     highlightLane('shared');
     const node = await dealTo(game.shared, el.sharedCards, card);
@@ -666,161 +706,217 @@ async function layOnBoard(card) {
     return node;
 }
 
-/** "Dealer's Call": the dealer's own total decides where your card lands. */
-async function playerHit() {
+/** You route the card: the board feeds both hands, your hand only you. */
+async function playerDraw(target) {
     if (game.phase !== PHASE.PLAYER) return;
-
-    const pressBefore = currentPressOffer().amount;
-    game.phase = PHASE.RESOLVING;
-    game.drawsTaken += 1;
-    syncControls();
-    highlightLane(null);
-
-    const card = drawCard();
-    const dealerBefore = handTotal(game.dealer, game.dealerBoard).total;
-    const dealerHitsToo = dealerBefore < standsOn();
-
-    setStatus('You call for a card — the dealer weighs it', { thinking: true });
-    await sleep(440);
-    SFX.button();
-
-    if (dealerHitsToo) {
-        setStatus('Dealer takes one too — <b>this card is shared</b>.');
-        await sleep(320);
-        await layOnBoard(card);
-    } else {
-        setStatus('Dealer is pat — <b>the card is yours alone</b>.');
-        await sleep(320);
-        highlightLane('player');
-        await dealTo(game.player, el.playerCards, card);
-    }
-
-    return afterDraw({ pressBefore });
-}
-
-/**
- * "Your Call": you route the card yourself. The board is the aggressive line —
- * it can break a dealer sitting on 16, but it lifts your total too. Keeping a
- * card to yourself is safe, and deliberately scarce.
- */
-async function playerDraw(target, { free = false } = {}) {
-    if (game.phase !== PHASE.PLAYER) return;
-    if (target === 'hand' && !free && game.privateLeft <= 0) return;
-
-    const pressBefore = currentPressOffer().amount;
-    if (game.tutorialStep === 'board') {
-        game.tutorialStep = 'played';
+    if (target === 'hand' && game.privateLeft <= 0) return;
+    if (game.tutorialStep === 'h1-board') {
+        if (target !== 'board') return;
+        game.tutorialStep = 'h1-played';
         coach(null);
     }
+
     game.phase = PHASE.RESOLVING;
     game.drawsTaken += 1;
-    if (target === 'hand' && !free) game.privateLeft -= 1;
+    if (target === 'hand') game.privateLeft -= 1;
     syncControls();
     highlightLane(null);
     SFX.button();
 
     const card = drawCard();
-
     if (target === 'board') {
         setStatus('Onto the board — <b>this card counts for both</b>.');
-        await sleep(420);
+        await sleep(360);
         await layOnBoard(card);
     } else {
+        game.boardBoost = false;
         setStatus('Into your hand — <b>yours alone</b>.');
-        await sleep(420);
+        await sleep(360);
         highlightLane('player');
         await dealTo(game.player, el.playerCards, card);
     }
-
-    return afterDraw({ pressBefore });
-}
-
-/** Shared settlement for both variants once a card has landed. */
-async function afterDraw({ pressBefore = 0 } = {}) {
-    await sleep(260);
+    await sleep(220);
     highlightLane(null);
 
-    const p = handTotal(game.player, game.shared).total;
-    const d = handTotal(game.dealer, game.dealerBoard).total;
-
+    const p = playerTotal().total;
+    const d = dealerTotal().total;
     // The player busts first, so a card that breaks them both is still a loss.
-    // Treating it as a push made reckless drawing free and handed the player a
-    // large edge — a quarter of all hands were ending in a no-risk refund.
     if (p > 21) {
         markBust(el.playerCards);
-        return finish('lose',
-            d > 21 ? `${p} — that card broke you both, but you went over first.`
-                   : `You bust with ${p}.`,
-            { bust: true });
+        return finish('lose', d > 21
+            ? `${p} — that card broke you both, but you went over first.`
+            : `You bust with ${p}.`, { bust: true });
     }
     if (d > 21) {
         game.boardBrokeDealer = true;
         await revealDealer();
         markBust(el.dealerCards);
-        return finish('win', `The board broke the dealer at ${d}!`);
+        return finish('win', `The board broke ${rival().name} at ${d}!`);
     }
 
-    game.phase = PHASE.PLAYER;
+    if (game.round < DUEL_ROUNDS) {
+        const folded = await bettingRound();
+        if (folded) return foldWin(folded);
+    }
+    toDrawing();
+}
+
+/* ---- Betting ------------------------------------------------------------- */
+
+/**
+ * One fixed-limit betting round. You act first; the dealer answers. Each
+ * round allows the rival's raise cap (one, or two at Vex's table).
+ * @returns the side that folded, or null when the round closes.
+ */
+async function bettingRound() {
+    // Nothing to bet with on one side: the hand plays out on the cards.
+    if (game.bankroll <= 0 || game.purse <= 0) return null;
+    game.round += 1;
+    game.raises = 0;
+    let actor = 'player';
+    let facing = false;
+
+    for (let guard = 0; guard < 12; guard++) {
+        let act;
+        if (actor === 'player') {
+            act = await playerTurn(facing);
+        } else {
+            act = await dealerTurn(facing);
+        }
+        const other = actor === 'player' ? 'dealer' : 'player';
+        const mine = actor === 'player' ? game.playerIn : game.dealerIn;
+        const theirs = actor === 'player' ? game.dealerIn : game.playerIn;
+        const unit = duelBetSize(game.ante, game.round);
+
+        if (act === 'fold') return actor;
+        if (act === 'check') {
+            if (actor === 'dealer') return null;
+            actor = other;
+            continue;
+        }
+        if (act === 'call') {
+            commit(actor, theirs - mine);
+            return null;
+        }
+        // bet or raise: match what is owed, then add one unit — never more
+        // than the other side can still answer.
+        const otherCan = actor === 'player' ? game.purse : game.bankroll;
+        const owed = theirs - mine;
+        commit(actor, owed + Math.min(unit, otherCan));
+        if (act === 'raise') game.raises += 1;
+        if (actor === 'player') game.aggression += 1;
+        facing = true;
+        actor = other;
+        // The other side is all in: nothing left to raise, they only answer.
+        if ((actor === 'player' ? game.bankroll : game.purse) <= 0) {
+            commit(actor, 0);
+            return null;
+        }
+    }
+    return null;
+}
+
+/** Waits for your betting decision. */
+function playerTurn(facing) {
+    game.facing = facing;
+    game.phase = PHASE.BETTING;
     highlightLane('player');
+    const { call } = betAmounts();
+    if (game.tutorialStep === 'h1-check' && !facing) {
+        coach(el.checkBtn, 'Before any draw there\'s a betting round. You\'re only on 9 — <b>Check</b> and see what she does.');
+    } else if (game.tutorialStep === 'h2-bet' && !facing) {
+        coach(el.betBtn, `You're on 20 and ${rival().name} can only show a range. <b>Bet</b> — she stays in only with a real hand.`);
+    }
     syncControls();
-    const pressAfter = currentPressOffer().amount;
-    if (p === 21) {
-        setStatus('Twenty-one! Stand and lock it in?');
-    } else if (pressAfter > 0) {
-        const shift = pressBefore > pressAfter ? `${money(pressBefore)} → ${money(pressAfter)}` : `+${money(pressAfter)}`;
-        setStatus(`New press window: <b>${shift}</b>. Back the read or play on.`);
+    setStatus(facing
+        ? `${rival().name} bets — <b>call ${money(call)}</b>, raise, or fold.`
+        : `Betting round ${game.round} — <b>check</b> or <b>bet</b>.`);
+    return new Promise(resolve => { game.betResolve = resolve; });
+}
+
+/** Your button press in a betting round. */
+function playerBet(act) {
+    if (game.phase !== PHASE.BETTING || !game.betResolve) return;
+    const button = { check: el.checkBtn, bet: el.betBtn, call: el.callBtn, raise: el.raiseBtn, fold: el.foldBtn }[act];
+    if (!button || button.hidden || button.disabled) return;
+    if (game.tutorialStep === 'h1-check' && act === 'check') game.tutorialStep = 'h1-mara';
+    if (game.tutorialStep === 'h2-bet' && act === 'bet') game.tutorialStep = 'h2-mara';
+    coach(null);
+    const resolve = game.betResolve;
+    game.betResolve = null;
+    game.phase = PHASE.RESOLVING;
+    SFX.button();
+    syncControls();
+    const { call } = betAmounts();
+    setStatus({
+        check: 'You check.',
+        bet: 'You bet.',
+        call: `You call ${money(call)}.`,
+        raise: 'You raise.',
+        fold: 'You fold.'
+    }[act]);
+    resolve(act);
+}
+
+/** The dealer reads what it can see and answers in character. */
+async function dealerTurn(facing) {
+    const r = rival();
+    highlightLane('dealer');
+    setStatus(`${r.name} weighs it`, { thinking: true });
+    await sleep(reducedMotion() ? 60 : 680);
+
+    let act;
+    if (game.tutorialStep === 'h1-mara') {
+        act = 'check';
+        game.tutorialStep = 'h1-board';
+    } else if (game.tutorialStep === 'h2-mara') {
+        act = 'fold';
+        game.tutorialStep = 'h2-done';
     } else {
-        setStatus('Your move.');
+        const strength = duelStrength({
+            dealerCards: game.dealer,
+            dealerBoard: game.dealerBoard,
+            shared: game.shared,
+            playerPrivateCount: game.player.length,
+            privateLeft: game.privateLeft,
+            standsOn: standsOn(),
+            aggression: game.aggression,
+            belief: r.belief
+        });
+        act = duelDealerAction({
+            strength,
+            facing,
+            toCall: game.playerIn - game.dealerIn,
+            pot: pot(),
+            rival: r,
+            raisesLeft: r.maxRaises - game.raises,
+            boardBoost: game.boardBoost,
+            roll: Math.random(),
+            jitter: (Math.random() - 0.5) * 0.06
+        });
+        // Nothing to raise into: an all-in player can only be called.
+        if (act === 'raise' && game.bankroll <= 0) act = 'call';
+        if (act === 'bet' && game.bankroll <= 0) act = 'check';
     }
-}
 
-/* ---- Money actions ------------------------------------------------------- */
-
-/** Price the one conviction press available at the current card state. */
-function currentPressOffer() {
-    return pressOffer({
-        ante: game.ante,
-        bankroll: game.bankroll,
-        drawsTaken: game.drawsTaken,
-        pressedTotal: game.pressTotal,
-        pressedAtDraw: game.pressedAtDraw,
-        scoutLocked: false
-    });
-}
-
-function playerRaise() {
-    if (game.phase !== PHASE.PLAYER) return;
-    const offer = currentPressOffer();
-    const amount = offer.amount;
-    if (amount <= 0) return;
-    const bankBefore = game.bankroll;
-    const betBefore = game.bet;
-    game.bankroll -= amount;
-    game.bet += amount;
-    game.pressTotal += amount;
-    persist();
-    game.pressedAtDraw = game.drawsTaken;
-    const pressureBefore = game.pressure;
-    game.pressure = Math.min(3, game.pressure + pressureGain({
-        drawsTaken: game.drawsTaken,
-        scoutUsed: false
-    }));
-    game.moneyAction = 'raise';
-    if (game.raisedAtDraw === null) game.raisedAtDraw = game.drawsTaken;
-    SFX.chip();
-    updateMoney();
-    animateMoneyValue(el.bankroll, bankBefore, game.bankroll, 280);
-    animateBetTransfer(el.raiseBtn, betBefore, game.bet);
-    updateTotals();
-    if (game.pressure > pressureBefore) {
-        laneOf.dealer.classList.remove('pressure-rise');
+    say(act);
+    if (act === 'bet' || act === 'raise') {
+        laneOf.dealer.classList.remove('dealer-bets');
         void laneOf.dealer.offsetWidth;
-        laneOf.dealer.classList.add('pressure-rise');
-        setTimeout(() => laneOf.dealer.classList.remove('pressure-rise'), 900);
+        laneOf.dealer.classList.add('dealer-bets');
     }
-    setStatus(`Read backed — <b>${money(game.bet)}</b> in play. Dealer pressure <b>${game.pressure}/3</b>.`);
-    syncControls();
+    setStatus({
+        check: `${r.name} checks.`,
+        bet: `${r.name} bets.`,
+        call: `${r.name} calls.`,
+        raise: `${r.name} raises!`,
+        fold: `${r.name} folds.`
+    }[act]);
+    if (act !== 'fold' && act !== 'check') await sleep(reducedMotion() ? 40 : 360);
+    return act;
 }
+
+/* ---- Cards out of the shoe ----------------------------------------------- */
 
 /** Every card leaves the shoe through here. */
 function drawCard() {
@@ -829,7 +925,7 @@ function drawCard() {
 
 /**
  * Moves the named cards to the top of the shoe, first-named drawn first.
- * Used only to stack the guided first hand.
+ * Used only to stack the guided hands.
  */
 function rigDeck(order) {
     const picked = order.map(([rank, suit]) => {
@@ -843,94 +939,51 @@ async function playerStand() {
     if (game.phase !== PHASE.PLAYER) return;
     game.phase = PHASE.RESOLVING;
     syncControls();
-    setStatus('You stand. Dealer turns over', { thinking: true });
-    await sleep(560);
+    setStatus(`You stand. ${rival().name} turns over`, { thinking: true });
+    await sleep(520);
     await dealerPlay();
 }
 
+/** Showdown: the dealer reveals and plays against your final total. */
 async function dealerPlay() {
     game.phase = PHASE.RESOLVING;
     highlightLane('dealer');
     await revealDealer();
     updateTotals();
 
-    const p = handTotal(game.player, game.shared).total;
-
+    const p = playerTotal().total;
+    const name = rival().name;
     while (true) {
-        const dealerState = handTotal(game.dealer, game.dealerBoard);
+        const dealerState = dealerTotal();
         const d = dealerState.total;
-        const move = dealerMove({
-            dealerTotal: d,
-            playerTotal: p,
-            soft: dealerState.soft,
-            pressureAvailable: game.dealerCounter > 0 && rival().counters,
-            pressure: Math.min(3, game.pressure + rival().heatBonus),
-            standsOn: standsOn()
-        });
-
+        const move = dealerMove({ dealerTotal: d, playerTotal: p, soft: dealerState.soft, pressureAvailable: false, standsOn: standsOn() });
         if (!move.draw) {
-            if (move.intent === 'protect') {
-                game.dealerIntent = { text: `protects ${d} over ${p}`, tone: 'tell-pat' };
-                setStatus(`Dealer protects the lead: <b>${d}–${p}</b>.`);
-            } else if (move.intent === 'hold-push') {
-                game.dealerIntent = { text: `holds the ${d} push`, tone: 'tell-maybe' };
-                setStatus(`Dealer takes the push at <b>${d}</b>.`);
-            } else if (move.intent === 'concede') {
-                const reason = game.counterUsed ? 'counter spent' : 'out of reach';
-                game.dealerIntent = { text: `${reason} · trails ${p}`, tone: 'tell-hit' };
-                setStatus(game.counterUsed
-                    ? `Counter spent — dealer cannot catch your <b>${p}</b>.`
-                    : `Dealer can't chase your <b>${p}</b> and stands.`);
-            } else if (move.intent === 'hold') {
-                game.dealerIntent = { text: d === 21 ? 'locks 21' : `holds ${d}`, tone: 'tell-pat' };
-                setStatus(d === 21 ? 'Dealer locks in <b>21</b>.' : `Dealer holds at <b>${d}</b>.`);
-            }
+            if (move.intent === 'protect') game.dealerIntent = { text: `protects ${d} over ${p}`, tone: 'tell-pat' };
+            else if (move.intent === 'hold-push') game.dealerIntent = { text: `holds the ${d} push`, tone: 'tell-maybe' };
+            else if (move.intent === 'concede') game.dealerIntent = { text: `stands on ${d}`, tone: 'tell-hit' };
+            else game.dealerIntent = { text: d === 21 ? 'locks 21' : `holds ${d}`, tone: 'tell-pat' };
             updateTotals();
             break;
         }
-
-        if (move.usesCounter) {
-            game.dealerCounter = 0;
-            game.counterUsed = true;
-            laneOf.dealer.classList.add('countering');
-            setTimeout(() => laneOf.dealer.classList.remove('countering'), 1500);
-            SFX.counter();
-        }
-
-        if (move.intent === 'attack-tie') {
-            game.dealerIntent = { text: `attacks the ${d} tie`, tone: 'tell-hit' };
-            setStatus(`Dealer spends its <b>Counter</b> to attack the ${d} tie.`, { thinking: true });
-        } else if (move.intent === 'counter') {
-            game.dealerIntent = { text: `counters your ${p}`, tone: 'tell-hit' };
-            setStatus(`Dealer counters from <b>${d}</b> — chasing your <b>${p}</b>.`, { thinking: true });
-        } else {
-            game.dealerIntent = { text: `building from ${d}`, tone: 'tell-maybe' };
-            setStatus(`Dealer trails <b>${d}–${p}</b> and draws.`, { thinking: true });
-        }
+        game.dealerIntent = { text: `building from ${d}`, tone: 'tell-maybe' };
+        setStatus(`${name} trails <b>${d}–${p}</b> and draws.`, { thinking: true });
         updateTotals();
-        await sleep(620);
+        await sleep(560);
         await dealTo(game.dealer, el.dealerCards, drawCard());
         updateTotals();
-        if (handTotal(game.dealer, game.dealerBoard).total > 21) break;
+        if (dealerTotal().total > 21) break;
     }
 
     highlightLane(null);
-    await sleep(420);
-
-    const d = handTotal(game.dealer, game.dealerBoard).total;
-
-    // Player first, to stay consistent with the bust rule above.
-    if (p > 21) {
-        markBust(el.playerCards);
-        return finish('lose', `You're over at ${p}.`, { bust: true });
-    }
+    await sleep(380);
+    const d = dealerTotal().total;
     if (d > 21) {
         markBust(el.dealerCards);
-        return finish('win', `Dealer busts with ${d}. The hand is yours.`);
+        return finish('win', `${name} busts with ${d}. The pot is yours.`);
     }
     if (p > d) return finish('win', `${p} beats ${d}.`);
-    if (d > p) return finish('lose', `Dealer's ${d} tops your ${p}.`);
-    return finish('push', `Both on ${p} — push.`);
+    if (d > p) return finish('lose', `${name}'s ${d} tops your ${p}.`);
+    return finish('push', `Both on ${p} — the pot splits.`);
 }
 
 function markBust(container) {
@@ -938,147 +991,167 @@ function markBust(container) {
     SFX.bust();
 }
 
+/** A fold ends the hand: the other side takes the pot, no cards shown. */
+function foldWin(folder) {
+    return folder === 'dealer'
+        ? finish('win', `${rival().name} folds — the pot is yours.`, { fold: true })
+        : finish('lose', `You fold — ${rival().name} takes the pot.`, { fold: true });
+}
+
 /* ---- Settlement ---------------------------------------------------------- */
 
-async function finish(outcome, message, { bust = false } = {}) {
+function handInsight(outcome, { bust, fold }) {
+    const name = rival().name;
+    if (fold && outcome === 'win') {
+        return game.aggression > 0 && playerTotal().total < 17
+            ? `${name} folded to a bet on ${playerTotal().total} — the bluff worked.`
+            : `${name} folded — betting your strong hands makes her pay or quit.`;
+    }
+    if (fold) return 'Folding saves chips when the read turns against you.';
+    if (bust) return 'The board breaks you first — keep a Hand draw for the risky cards.';
+    if (outcome === 'win' && game.boardBrokeDealer) return 'Board read paid off — your shared card broke the dealer.';
+    if (outcome === 'win' && pot() >= game.ante * 6) return 'A big pot — you bet the strong hand and got paid.';
+    if (outcome === 'lose' && game.aggression > 0) return `${name} called you down and had it.`;
+    if (outcome === 'push') return 'Dead level — the pot splits.';
+    return outcome === 'win'
+        ? 'Good read — carry that line into the next hand.'
+        : 'The line missed — use the dealer range to sharpen the next decision.';
+}
+
+async function finish(outcome, message, { bust = false, fold = false } = {}) {
     game.phase = PHASE.OVER;
+    game.settled = false;
+    game.betResolve = null;
     highlightLane(null);
+    coach(null);
     syncControls();
 
-    // However the hand ended, the player gets to see what the dealer held.
-    if (el.dealerCards.querySelector('.card.face-down')) {
-        setStatus('Dealer shows their hand…');
+    // A folded hand stays hidden; any other ending shows the dealer's cards.
+    if (!fold && el.dealerCards.querySelector('.card.face-down')) {
         await revealDealer();
     }
     updateTotals();
 
-    const wager = game.bet;
-    const playerTotal = handTotal(game.player, game.shared).total;
-    const bankrollBefore = game.bankroll;
-    const previousBest = game.best;
-    const r = rival();
-    let payout = 0;
-    let detail = '';
-    let perfect = false;
-
-    // Every chip you win comes out of the rival's purse, and every chip you
-    // lose goes into it. The purse can only pay what it holds.
-    if (outcome === 'win') {
-        perfect = playerTotal === 21;
-        const bounty = counterBounty({
-            ante: game.ante,
-            pressure: game.pressure,
-            counterUsed: game.counterUsed,
-            outcome
-        });
-        const owed = Math.round(wager * (perfect ? PERFECT_MULTIPLIER : 1)) + bounty;
-        const paid = Math.min(owed, game.purse);
-        game.purse -= paid;
-        payout = wager + paid;
-        game.wins += 1;
-        detail = `+${money(paid)}`;
-        if (perfect) detail += ' · 21 pays 3:2';
-        if (bounty > 0) detail += ` · Counter bounty +${money(bounty)}`;
-        if (paid < owed) detail += ' · purse emptied';
-    } else if (outcome === 'push') {
-        payout = wager;
-        detail = 'Bet returned';
-    } else {
-        game.purse += wager;
-        detail = `−${money(wager)}`;
+    // An all-in call for less than the bet: the uncalled part goes back.
+    if (game.dealerIn > game.playerIn) {
+        game.purse += game.dealerIn - game.playerIn;
+        game.dealerIn = game.playerIn;
+    } else if (game.playerIn > game.dealerIn) {
+        game.bankroll += game.playerIn - game.dealerIn;
+        game.playerIn = game.dealerIn;
     }
 
-    const insight = decisionInsight({
-        outcome,
-        mode: game.mode,
-        playerTotal,
-        moneyAction: game.moneyAction,
-        pressTotal: game.pressTotal,
-        scoutUsed: false,
-        pressure: game.pressure,
-        counterUsed: game.counterUsed,
-        raisedAtDraw: game.raisedAtDraw,
-        boardBrokeDealer: game.boardBrokeDealer,
-        privateLeft: game.privateLeft,
-        challengeWon: false,
-        drawsTaken: game.drawsTaken,
-        bust
-    });
+    const r = rival();
+    const potBefore = pot();
+    const myIn = game.playerIn;
+    const bankrollBefore = game.bankroll;
+    const purseBefore = game.purse;
+    const perfect = outcome === 'win' && !fold && playerTotal().total === 21;
+    let bonus = 0;
 
-    game.bankroll += payout;
-    game.bet = 0;
+    if (outcome === 'win') {
+        game.bankroll += potBefore;
+        if (perfect) {
+            bonus = Math.min(game.ante, game.purse);
+            game.purse -= bonus;
+            game.bankroll += bonus;
+        }
+        game.wins += 1;
+    } else if (outcome === 'push') {
+        game.bankroll += game.playerIn;
+        game.purse += game.dealerIn;
+    } else {
+        game.purse += potBefore;
+    }
+    const net = game.bankroll - game.handStartStake;
+    let detail = net > 0 ? `+${money(net)}` : net < 0 ? `−${money(-net)}` : 'Even';
+    if (perfect && bonus) detail += ` · 21 bonus +${money(bonus)}`;
+    const insight = handInsight(outcome, { bust, fold });
+
+    game.playerIn = 0;
+    game.dealerIn = 0;
     game.hands += 1;
+    if (!game.practice) game.matchHand += 1;
+    const newPeak = game.bankroll > game.best;
+    game.best = Math.max(game.best, game.bankroll);
 
-    // Climb or fall. A purse below the table minimum is broken; a stake
-    // below it means you've been run out of town.
+    // Climb or fall: whoever cannot post the next ante loses the match.
+    const nextAnte = duelAnte(r, game.matchHand);
     game.ladderEvent = null;
-    if (game.purse < r.minBet) {
+    if (game.purse < nextAnte) {
         game.bankroll += r.bounty;
         const last = game.rung === ladderRivals.length - 1;
         game.ladderEvent = { kind: last ? 'champion' : 'beaten', rival: r };
         if (last) game.cleared += 1;
         game.rung = last ? 0 : game.rung + 1;
         game.purse = rival().purse;
-    } else if (game.bankroll < r.minBet) {
+        game.matchHand = 0;
+    } else if (game.bankroll < nextAnte) {
         const fall = ladderFall(game.rung);
         game.ladderEvent = { kind: 'fall', rival: r };
         game.rung = fall.rung;
         game.bankroll = fall.stake;
         game.purse = rival().purse;
+        game.matchHand = 0;
     }
-    if (game.tutorialStep === 'played') {
+    if (game.tutorialStep === 'h1-played') game.tutorialStep = 'h2-intro';
+    if (game.tutorialStep === 'h2-done') {
         game.tutorialStep = 'wrap';
         game.tutorialDone = true;
     }
-    const newPeak = game.bankroll > previousBest;
-    game.best = Math.max(game.best, game.bankroll);
     persist();
-    updateMoney(false);
 
     if (outcome === 'win') {
         laneOf.player.classList.add('winner');
         if (perfect) laneOf.player.classList.add('perfect-win');
         if (game.boardBrokeDealer) laneOf.shared.classList.add('winner');
-    }
-
-    if (payout > 0) {
         animatePayoutTransfer({
             bankrollBefore,
-            bankrollAfter: game.bankroll,
-            potBefore: wager,
-            payout,
+            bankrollAfter: game.ladderEvent ? bankrollBefore + potBefore + bonus : game.bankroll,
+            potBefore,
+            payout: potBefore + bonus,
             outcome,
             perfect,
             hot: false,
             challengeWon: false,
             newPeak
         });
+    } else if (outcome === 'push') {
+        animatePayoutTransfer({ bankrollBefore, bankrollAfter: bankrollBefore + myIn, potBefore, payout: myIn, outcome, perfect: false, hot: false, challengeWon: false, newPeak: false });
     } else {
-        animateLossDrain(wager);
+        animateLossDrain(potBefore);
     }
+    renderRival();
 
-    const splash = outcome === 'win' ? 'win' : bust ? 'bust' : outcome === 'push' ? 'tie' : 'lose';
-    showSplash(splash, detail, insight, false);
-
+    const splash = fold
+        ? (outcome === 'win' ? 'fold-win' : 'fold-lose')
+        : outcome === 'win' ? 'win' : bust ? 'bust' : outcome === 'push' ? 'tie' : 'lose';
+    showSplash(splash, detail, insight);
     if (outcome === 'win') {
-        confetti(playerTotal === 21 ? 160 : 90);
-        playerTotal === 21 ? SFX.jackpot() : SFX.win();
+        confetti(perfect ? 160 : 80);
+        perfect ? SFX.jackpot() : SFX.win();
+        if (!fold) say('lose');
     } else if (outcome === 'push') {
         SFX.push();
-    } else if (!bust) {
-        SFX.lose();
+    } else {
+        if (!bust) SFX.lose();
+        say('win');
+    }
+    if (!game.ladderEvent && purseBefore >= r.purse / 2 && game.purse < r.purse / 2) {
+        setTimeout(() => say('half'), 1300);
     }
 
     setStatus(message);
-
+    game.settled = true;
     clearTimeout(openBetting.timer);
     openBetting.timer = setTimeout(openBetting, 2100);
 }
 
-/** Back to the betting rail — on a timer, or straight away if the splash is dismissed. */
+/** Back between hands — on a timer, or straight away if the splash is dismissed. */
 function openBetting() {
+    // Only once the hand is fully settled, however the splash was dismissed.
+    if (game.phase !== PHASE.OVER || !game.settled) return;
     clearTimeout(openBetting.timer);
-    if (game.phase !== PHASE.OVER) return;
     game.phase = PHASE.BET;
     hideOverlay();
     updateMoney();
@@ -1095,11 +1168,23 @@ function openBetting() {
         clearTable();
         updateTotals();
         showPoster(event.kind, event.rival);
-    } else if (game.tutorialStep === 'wrap') {
-        tutorialWrap();
-    } else {
-        setStatus(`Place your bet against <b>${rival().name}</b> — or tap Again.`);
+        return;
     }
+    if (game.tutorialStep === 'h2-intro') {
+        game.tutorialStep = 'h2-deal';
+        setStatus('One more guided hand.');
+        coach(el.dealBtn, 'Now the other half of the game: <b>betting</b>. Deal.');
+        return;
+    }
+    if (game.tutorialStep === 'wrap') {
+        tutorialWrap();
+        return;
+    }
+    const risesNow = game.matchHand > 0 && game.matchHand % 2 === 0;
+    if (risesNow) say('rise');
+    setStatus(risesNow
+        ? `The ante rises to <b>${money(currentAnte())}</b>.`
+        : `Deal when ready — ante <b>${money(currentAnte())}</b>.`);
 }
 
 /* ---- Flourishes ---------------------------------------------------------- */
@@ -1289,14 +1374,14 @@ function flyMoney(text, negative = false) {
     setTimeout(() => node.remove(), 1200);
 }
 
-function showSplash(kind, detail, insight = '', challengeWon = false) {
-    const word = { win: 'Winner', lose: 'Beaten', tie: 'Push', bust: 'Busted' }[kind];
+function showSplash(kind, detail, insight = '') {
+    const word = { win: 'Winner', lose: 'Beaten', tie: 'Push', bust: 'Busted', 'fold-win': 'Folded', 'fold-lose': 'Folded' }[kind];
     el.resultWord.textContent = word;
     el.resultStamp.dataset.kind = kind;
+    el.resultStamp.querySelector('small').textContent = kind === 'fold-win' ? `${rival().name} quits` : kind === 'fold-lose' ? 'You lay it down' : 'Showdown';
     el.resultPayout.textContent = detail || '';
-    el.resultPayout.classList.toggle('negative', kind === 'lose' || kind === 'bust');
+    el.resultPayout.classList.toggle('negative', /^−/.test(detail));
     el.resultInsight.textContent = insight;
-    el.resultInsight.classList.toggle('goal-cleared', challengeWon);
     el.overlay.setAttribute('aria-hidden', 'false');
     el.overlay.classList.remove('hidden');
     // restart the stamp animation
@@ -1367,14 +1452,14 @@ function stepConfetti() {
     else { fxRunning = false; fxCtx.clearRect(0, 0, window.innerWidth, window.innerHeight); }
 }
 
-/* ---- Saloon Ladder: posters and the guided hand ------------------------- */
+/* ---- Saloon Ladder: posters and the guided hands ------------------------- */
 
 const POSTER_COPY = {
     intro: r => ({
         eyebrow: `Rung ${ladderRivals.indexOf(r) + 1} of ${ladderRivals.length}`,
         title: `${r.name}, ${r.title}`,
         body: r.ruleDetail,
-        stats: [['House rule', r.rule], ['Purse', money(r.purse)], ['Table min', money(r.minBet)], ['Bounty', money(r.bounty)]],
+        stats: [['House rule', r.rule], ['Purse', money(r.purse)], ['Opening ante', money(r.ante)], ['Bounty', money(r.bounty)]],
         cta: 'Take a seat',
         stamp: 'Wanted'
     }),
@@ -1443,11 +1528,11 @@ function closePoster() {
     updateMoney();
     syncControls();
     if (!game.tutorialDone && game.tutorialStep === null) {
-        game.tutorialStep = 'bet';
+        game.tutorialStep = 'h1-deal';
         setStatus(`Your first hand against <b>${rival().name}</b>.`);
-        coach(el.chips, `Tap a chip to bet at least ${money(rival().minBet)}.`);
+        coach(el.dealBtn, 'Each hand starts with an ante from both of you. <b>Deal</b>.');
     } else {
-        setStatus(`Place your bet against <b>${rival().name}</b>.`);
+        setStatus(`Deal when ready — ante <b>${money(currentAnte())}</b>.`);
     }
 }
 
@@ -1478,8 +1563,8 @@ window.addEventListener('resize', () => coach.place && coach.place());
 function tutorialWrap() {
     game.tutorialStep = null;
     persist();
-    setStatus(`That's the twist. Now break <b>${rival().name}'s</b> purse.`);
-    coach(el.actionsRow, 'Two more tools: <b>Hand</b> keeps a card to yourself (twice a hand), and <b>Press</b> backs a strong read. Tap to close.');
+    setStatus(`That's the game. Break <b>${rival().name}'s</b> purse to climb.`);
+    coach(el.dealBtn, `Read the board, route your cards, bet your strong hands. ${rival().name} never bluffs — if she raises, believe her. Tap to close.`);
     const dismiss = () => { coach(null); document.removeEventListener('pointerdown', dismiss, true); };
     document.addEventListener('pointerdown', dismiss, true);
 }
@@ -1530,24 +1615,15 @@ function syncSoundIcon() {
     el.soundBtn.setAttribute('aria-pressed', String(!SFX.muted));
 }
 
-el.chips.addEventListener('click', e => {
-    const chip = e.target.closest('.chip');
-    if (chip && !chip.disabled) addToBet(Number(chip.dataset.value), chip);
-});
-el.clearBet.addEventListener('click', clearBet);
-el.maxBet.addEventListener('click', () => addToBet(game.bankroll, el.maxBet));
-el.rebet.addEventListener('click', () => {
-    clearBet();
-    addToBet(game.lastBet, el.rebet);
-    startRound();
-});
-
-el.dealBtn.addEventListener('click', startRound);
-el.hitBtn.addEventListener('click', () => playerHit());
+el.dealBtn.addEventListener('click', startHand);
+el.checkBtn.addEventListener('click', () => playerBet('check'));
+el.betBtn.addEventListener('click', () => playerBet('bet'));
+el.callBtn.addEventListener('click', () => playerBet('call'));
+el.raiseBtn.addEventListener('click', () => playerBet('raise'));
+el.foldBtn.addEventListener('click', () => playerBet('fold'));
 el.boardBtn.addEventListener('click', () => playerDraw('board'));
 el.handBtn.addEventListener('click', () => playerDraw('hand'));
 el.standBtn.addEventListener('click', playerStand);
-el.raiseBtn.addEventListener('click', playerRaise);
 
 el.rulesBtn.addEventListener('click', openRules);
 el.rulesClose.addEventListener('click', closeRules);
@@ -1586,28 +1662,19 @@ document.addEventListener('keydown', e => {
     const interactiveTarget = e.target instanceof Element &&
         e.target.closest('button, a, input, select, textarea, [contenteditable="true"], [role="button"]');
 
-    if (key === 'h') {
-        if (routed()) { if (!el.handBtn.disabled) playerDraw('hand'); }
-        else if (!el.hitBtn.disabled) playerHit();
-    }
-    else if (key === 'b') { if (routed() && !el.boardBtn.disabled) playerDraw('board'); }
-    else if (key === 's') { if (!el.standBtn.disabled) playerStand(); }
-    else if (key === 'r') { if (!el.raiseBtn.disabled) playerRaise(); }
-    else if (key === 'enter' && interactiveTarget && interactiveTarget.closest('#betControls')) {
-        // Enter means Deal, even right after clicking a chip with the mouse.
-        e.preventDefault();
-        if (!el.dealBtn.disabled) startRound();
-    }
+    if (key === 'b') playerDraw('board');
+    else if (key === 'h') playerDraw('hand');
+    else if (key === 's') playerStand();
+    else if (key === 'x') playerBet('check');
+    else if (key === 'c') playerBet('call');
+    else if (key === 'f') playerBet('fold');
+    else if (key === 'r') playerBet(game.facing ? 'raise' : 'bet');
     else if (key === 'enter' && !interactiveTarget) {
         e.preventDefault();
-        if (!el.dealBtn.disabled) startRound();
+        if (!el.dealBtn.hidden && !el.dealBtn.disabled) startHand();
     }
     else if (key === 'm') { SFX.toggleMute(); syncSoundIcon(); }
     else if (key === '?' || key === '/') { openRules(); }
-    else if (key >= '1' && key <= '4') {
-        const chip = el.chips.querySelectorAll('.chip')[Number(key) - 1];
-        if (chip && !chip.disabled) addToBet(Number(chip.dataset.value));
-    }
 });
 
 ['pointerdown', 'keydown'].forEach(evt =>
@@ -1628,12 +1695,12 @@ updateShoe();
 updateTotals();
 syncControls();
 
-renderRival();
 if (!persisted.seen) {
-    // First visit: meet the first rival, then play the guided hand.
+    // First visit: meet the first rival, then play the two guided hands.
     game.seen = true;
     persist();
     showPoster('intro');
 } else {
-    setStatus(`Place your bet against <b>${rival().name}</b> — ${rival().rule.toLowerCase()}.`);
+    if (!game.tutorialDone) game.tutorialDone = true;
+    setStatus(`Deal when ready — ${rival().name}, ante <b>${money(currentAnte())}</b>.`);
 }
