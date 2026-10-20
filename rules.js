@@ -1,104 +1,9 @@
 /* Pure decision-loop rules shared by the browser game and automated tests. */
 (function exposeTexasJackRules() {
-    const goals = {
-        early_raise: {
-            id: 'early_raise',
-            text: 'Press before drawing, then win'
-        },
-        board_break: {
-            id: 'board_break',
-            text: 'Break the dealer with a shared card'
-        },
-        private_reserve: {
-            id: 'private_reserve',
-            text: 'Win without a private draw'
-        },
-        exact21: {
-            id: 'exact21',
-            text: 'Finish on exactly 21'
-        }
-    };
-
-    const goalOrder = {
-        classic: ['early_raise', 'board_break', 'exact21'],
-        routed: ['early_raise', 'board_break', 'private_reserve', 'exact21']
-    };
-
-    function tableGoal(mode, completedHands, ante) {
-        const order = goalOrder[mode] || goalOrder.classic;
-        const index = Math.max(0, Number(completedHands) || 0) % order.length;
-        return {
-            ...goals[order[index]],
-            reward: Math.max(5, Math.round((Number(ante) || 0) * 0.10))
-        };
-    }
-
-    function tableGoalComplete(goal, state) {
-        if (!goal || state.outcome !== 'win') return false;
-        if (goal.id === 'early_raise') {
-            return state.raisedAtDraw === 0;
-        }
-        if (goal.id === 'board_break') return !!state.boardBrokeDealer;
-        if (goal.id === 'private_reserve') {
-            // Winning alone was nearly automatic; winning off the board is a line.
-            return state.mode === 'routed' && state.privateLeft >= 2;
-        }
-        if (goal.id === 'exact21') return state.playerTotal === 21;
-        return false;
-    }
-
-    /**
-     * Price the next conviction press. A read may be backed once at each new
-     * card state, up to half the original ante across the whole hand. Early
-     * windows carry more leverage; unused windows expire when another card is
-     * drawn. A scouted card freezes the current window until it is consumed.
-     */
-    function pressOffer({ ante, bankroll, drawsTaken, pressedTotal, pressedAtDraw, scoutLocked }) {
-        const base = Math.max(0, Number(ante) || 0);
-        const cash = Math.max(0, Number(bankroll) || 0);
-        const draws = Math.max(0, Number(drawsTaken) || 0);
-        const committed = Math.max(0, Number(pressedTotal) || 0);
-        const limit = Math.max(0, Math.round(base * 0.50));
-        const remaining = Math.max(0, limit - committed);
-        const rate = draws === 0 ? 0.20 : draws <= 2 ? 0.10 : 0.05;
-        const stageAmount = base > 0 ? Math.max(1, Math.round(base * rate)) : 0;
-        const usedThisWindow = pressedAtDraw !== null
-            && pressedAtDraw !== undefined
-            && Number(pressedAtDraw) === draws;
-        const amount = scoutLocked || usedThisWindow
-            ? 0
-            : Math.min(stageAmount, remaining, cash);
-
-        return {
-            amount,
-            limit,
-            remaining,
-            rate,
-            usedThisWindow,
-            locked: !!scoutLocked,
-            maxed: remaining === 0
-        };
-    }
-
-    function pressureGain({ drawsTaken, scoutUsed }) {
-        return scoutUsed || Number(drawsTaken) >= 2 ? 2 : 1;
-    }
-
-    function counterBounty({ ante, pressure, counterUsed, outcome }) {
-        if (!counterUsed || outcome !== 'win') return 0;
-        const level = Math.max(0, Math.min(3, Number(pressure) || 0));
-        // Counter is the table's visible retaliation. Beating it needs a
-        // memorable upside large enough to reward selective conviction. Every
-        // level pays something so a well-timed press is never a pure tax;
-        // hands where Counter never fires earn nothing.
-        const rate = level >= 3 ? 1 : level >= 2 ? 0.60 : level >= 1 ? 0.30 : 0;
-        return Math.round((Number(ante) || 0) * rate);
-    }
-
     /* ---- Saloon Ladder: the heads-up duel ----------------------------------
        Quick Duel is a climb past three house dealers, each a short match with
        real betting: fixed-limit bets, up to three betting rounds a hand, and an
-       ante that rises every three hands. Each rival's personality lives in how
+       ante that rises every two hands. Each rival's personality lives in how
        they bet. All tuning numbers are checked by scripts/simulate-duel.cjs. */
     const ladderRivals = [
         {
@@ -217,7 +122,7 @@
                 const p = cardsTotal([...player, ...board]).total;
                 for (;;) {
                     const d = cardsTotal([...dealer, ...dBoard]);
-                    const move = dealerMove({ dealerTotal: d.total, playerTotal: p, soft: d.soft, pressureAvailable: false, standsOn });
+                    const move = dealerMove({ dealerTotal: d.total, playerTotal: p, soft: d.soft, standsOn });
                     if (!move.draw) break;
                     dealer.push(take());
                     if (cardsTotal([...dealer, ...dBoard]).total > 21) break;
@@ -236,14 +141,26 @@
      * Not facing a bet: 'check' or 'bet'. Facing one: 'fold', 'call' or 'raise'.
      * A small jitter keeps the thresholds from being solved exactly.
      */
-    function duelDealerAction({ strength, facing, toCall = 0, pot = 0, rival, raisesLeft = 0, boardBoost = false, roll = Math.random(), jitter = 0 }) {
+    /**
+     * What a rival has learned about you this match. Folding to your bets
+     * again and again makes them call lighter; seeing you bet a weak hand at
+     * showdown makes them trust your bets less. Returns the belief to use and
+     * a shift to their calling line.
+     */
+    function duelMemory(rival, { foldsToYou = 0, bluffsSeen = 0 } = {}) {
+        const belief = rival.belief * Math.max(0.2, 1 - 0.3 * bluffsSeen);
+        const callShift = -Math.min(0.15, 0.04 * Math.max(0, foldsToYou - 2) + 0.05 * bluffsSeen);
+        return { belief, callShift };
+    }
+
+    function duelDealerAction({ strength, facing, toCall = 0, pot = 0, rival, raisesLeft = 0, boardBoost = false, roll = Math.random(), jitter = 0, callShift = 0 }) {
         const value = (boardBoost ? rival.boostLine : rival.valueLine) + jitter;
         if (!facing) {
             if (strength >= Math.min(rival.leadLine, value) + jitter) return 'bet';
             return roll < rival.bluff ? 'bet' : 'check';
         }
         if (raisesLeft > 0 && strength >= value) return 'raise';
-        const callLine = toCall / Math.max(1, pot + toCall) + rival.callAdj + jitter;
+        const callLine = toCall / Math.max(1, pot + toCall) + rival.callAdj + callShift + jitter;
         if (strength >= callLine) return 'call';
         if (raisesLeft > 0 && roll < rival.bluff) return 'raise';
         return 'fold';
@@ -410,11 +327,6 @@
         };
     }
 
-    const rankWeights = [
-        ['A', 4], ['2', 4], ['3', 4], ['4', 4], ['5', 4], ['6', 4],
-        ['7', 4], ['8', 4], ['9', 4], ['10', 16]
-    ];
-
     function totalAfterRank(total, soft, rank) {
         const isAce = rank === 'A';
         const value = isAce ? 11 : rank === '10' ? 10 : Number(rank);
@@ -428,87 +340,21 @@
     }
 
     /**
-     * A transparent showdown opponent. It never sees the next card: it only
-     * compares the revealed scores and uses the public, full-shoe rank odds.
-     * Behind means chase, ahead means protect, and maximum Pressure only risks
-     * a low tie when the public full-shoe odds are favorable or near-even.
+     * The dealer's showdown draw, after you stand. Behind and under its stand
+     * number it draws; behind at or above it, ahead, or level, it holds. It
+     * only compares the revealed totals — it never sees the next card.
      */
-    function dealerMove({ dealerTotal, playerTotal, soft = false, pressureAvailable = true, pressure = 0, standsOn = 17 }) {
+    function dealerMove({ dealerTotal, playerTotal, standsOn = 17 }) {
         const dealer = Number(dealerTotal) || 0;
         const player = Number(playerTotal) || 0;
-        const heat = Math.max(0, Math.min(3, Number(pressure) || 0));
-        if (dealer > 21 || player > 21 || dealer === 21) {
-            return { draw: false, intent: 'hold', edge: -1, usesCounter: false };
-        }
+        if (dealer > 21 || player > 21 || dealer === 21) return { draw: false, intent: 'hold' };
         if (dealer < player) {
-            if (dealer < standsOn) return { draw: true, intent: 'build', edge: 1, usesCounter: false };
-            const gap = player - dealer;
-            const counterRange = [0, 2, 4, 21][heat];
-            return pressureAvailable && gap <= counterRange
-                ? { draw: true, intent: 'counter', edge: 1, usesCounter: true }
-                : { draw: false, intent: 'concede', edge: -1, usesCounter: false };
+            return dealer < standsOn ? { draw: true, intent: 'build' } : { draw: false, intent: 'concede' };
         }
-        if (dealer > player) {
-            return { draw: false, intent: 'protect', edge: 1, usesCounter: false };
-        }
-
-        let wins = 0;
-        let losses = 0;
-        for (const [rank, weight] of rankWeights) {
-            const next = totalAfterRank(dealer, soft, rank).total;
-            if (next > 21) losses += weight;
-            else if (next > player) wins += weight;
-        }
-        const edge = (wins - losses) / 52;
-        return heat >= 3 && edge > -0.08 && pressureAvailable
-            ? { draw: true, intent: 'attack-tie', edge, usesCounter: true }
-            : { draw: false, intent: 'hold-push', edge, usesCounter: false };
-    }
-
-    function decisionInsight(state) {
-        if (state.challengeWon) return `Table goal cleared — ${state.challengeText}.`;
-        if (state.outcome === 'win' && state.counterUsed) {
-            return state.pressure >= 2
-                ? 'Your pressure woke the Counter — then made its failed chase pay a bounty.'
-                : 'The dealer countered your read, and you held the stronger line.';
-        }
-        if (state.outcome === 'win' && state.boardBrokeDealer) {
-            return 'Board read paid off — your shared card broke the dealer.';
-        }
-        if (state.outcome === 'win' && state.pressTotal > 0 && state.scoutUsed) {
-            return 'You bought the read, then backed the next open press window.';
-        }
-        if (state.outcome === 'win' && state.pressTotal > 0) {
-            return state.raisedAtDraw === 0
-                ? 'Strong commitment — you backed the read at the best price.'
-                : 'You waited for a sharper read, but the press price had narrowed.';
-        }
-        if (state.scoutUsed) {
-            return 'Scout bought certainty — use it when it changes your route.';
-        }
-        if (state.outcome === 'win' && state.mode === 'routed' && state.privateLeft > 0) {
-            return 'Efficient hand — you won with a private draw still in reserve.';
-        }
-        if (state.outcome === 'win' && state.drawsTaken === 0) {
-            return 'Clean read — you won without taking another card.';
-        }
-        if (state.bust) {
-            return 'The shared board breaks you first — route the risk before the next draw.';
-        }
-        if (state.outcome === 'push') {
-            return 'The range read was close — the hand finished level.';
-        }
-        return state.outcome === 'win'
-            ? 'Good read — carry that line into the next hand.'
-            : 'The line missed — use the dealer range to sharpen the next decision.';
+        return { draw: false, intent: dealer > player ? 'protect' : 'hold-push' };
     }
 
     const api = {
-        tableGoal,
-        tableGoalComplete,
-        pressOffer,
-        pressureGain,
-        counterBounty,
         tableProfiles,
         tableBetSize,
         tableAiMove,
@@ -516,7 +362,6 @@
         tableBoardDecision,
         tableShowdown,
         dealerMove,
-        decisionInsight,
         ladderRivals,
         ladderRival,
         ladderFall,
@@ -526,6 +371,7 @@
         duelBetSize,
         duelStrength,
         duelDealerAction,
+        duelMemory,
         cardsTotal
     };
     if (typeof window !== 'undefined') window.TJRules = api;

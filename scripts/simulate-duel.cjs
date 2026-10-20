@@ -52,7 +52,7 @@ function playerStrength(player, dealerBoard, board, standsOn, privateLeft) {
             const p = total([...me, ...b]);
             for (;;) {
                 const d = rules.cardsTotal([...dealer, ...db]);
-                if (!rules.dealerMove({ dealerTotal: d.total, playerTotal: p, soft: d.soft, pressureAvailable: false, standsOn }).draw) break;
+                if (!rules.dealerMove({ dealerTotal: d.total, playerTotal: p, soft: d.soft, standsOn }).draw) break;
                 dealer.push(take());
                 if (total([...dealer, ...db]) > 21) break;
             }
@@ -79,7 +79,8 @@ const POLICIES = {
     passive: { open: () => 'check', face: c => (c.p >= 17 ? 'call' : 'fold') }
 };
 
-function playHand(rival, ante, policy) {
+function playHand(rival, ante, policy, reads = { foldsToYou: 0, bluffsSeen: 0 }) {
+    const memory = rules.duelMemory(rival, reads);
     const deck = shuffled();
     const draw = () => deck.pop();
     const player = [draw()], dealer = [draw()], board = [], dBoard = [];
@@ -110,17 +111,18 @@ function playHand(rival, ante, policy) {
                 const strength = rules.duelStrength({
                     dealerCards: dealer, dealerBoard: dBoard, shared: board,
                     playerPrivateCount: player.length, privateLeft, standsOn: rival.standsOn,
-                    aggression, belief: rival.belief, samples: 120, rng
+                    aggression, belief: memory.belief, samples: 120, rng
                 });
                 act = rules.duelDealerAction({
                     strength, facing, toCall, pot: pIn + dIn, rival,
                     raisesLeft: rival.maxRaises - raises, boardBoost: boost,
-                    roll: rng(), jitter: (rng() - 0.5) * 0.06
+                    roll: rng(), jitter: (rng() - 0.5) * 0.06, callShift: memory.callShift
                 });
                 if (facing) stats.dealerFacing += 1;
             }
             if (act === 'fold') {
-                if (actor === 'dealer') stats.dealerFolds += 1; else stats.playerFolds += 1;
+                if (actor === 'dealer') { stats.dealerFolds += 1; if (aggression > 0) reads.foldsToYou += 1; }
+                else stats.playerFolds += 1;
                 return actor;
             }
             if (act === 'check') {
@@ -157,9 +159,10 @@ function playHand(rival, ante, policy) {
         }
     }
     const p = pNow();
+    if (aggression > 0 && p < 17) reads.bluffsSeen += 1;
     for (;;) {
         const d = rules.cardsTotal([...dealer, ...dBoard]);
-        const move = rules.dealerMove({ dealerTotal: d.total, playerTotal: p, soft: d.soft, pressureAvailable: false, standsOn: rival.standsOn });
+        const move = rules.dealerMove({ dealerTotal: d.total, playerTotal: p, soft: d.soft, standsOn: rival.standsOn });
         if (!move.draw) break;
         dealer.push(draw());
         if (total([...dealer, ...dBoard]) > 21) break;
@@ -172,12 +175,13 @@ function playHand(rival, ante, policy) {
 
 function playMatch(rival, policy, stake) {
     let purse = rival.purse, hands = 0;
+    const reads = { foldsToYou: 0, bluffsSeen: 0 };
     for (;;) {
         const ante = rules.duelAnte(rival, hands);
         if (purse < ante) return { won: true, hands, stake: stake + rival.bounty };
         if (stake < ante) return { won: false, hands, stake };
         // Contributions cannot exceed what either side holds.
-        const net = Math.max(-stake, Math.min(purse, playHand(rival, ante, policy).net));
+        const net = Math.max(-stake, Math.min(purse, playHand(rival, ante, policy, reads).net));
         stake += net; purse -= net; hands += 1;
         if (hands > 400) return { won: false, hands, stake };
     }

@@ -43,21 +43,22 @@ const SFX = (() => {
     }
 
     /** Short filtered noise burst — paper, chips, thuds. */
-    function burst({ dur = 0.14, type = 'bandpass', freq = 1800, q = 1.2, gain = 0.35, sweep = 0 }) {
+    function burst({ dur = 0.14, type = 'bandpass', freq = 1800, q = 1.2, gain = 0.35, sweep = 0, delay = 0 }) {
         if (!ensure() || muted) return;
+        const t0 = ctx.currentTime + delay;
         const src = ctx.createBufferSource();
         src.buffer = noiseBuffer(dur);
         const filt = ctx.createBiquadFilter();
         filt.type = type;
-        filt.frequency.setValueAtTime(freq, ctx.currentTime);
-        if (sweep) filt.frequency.exponentialRampToValueAtTime(Math.max(80, freq + sweep), ctx.currentTime + dur);
+        filt.frequency.setValueAtTime(freq, t0);
+        if (sweep) filt.frequency.exponentialRampToValueAtTime(Math.max(80, freq + sweep), t0 + dur);
         filt.Q.value = q;
         const g = ctx.createGain();
-        g.gain.setValueAtTime(gain, ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+        g.gain.setValueAtTime(gain, t0);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
         src.connect(filt).connect(g).connect(master);
-        src.start();
-        src.stop(ctx.currentTime + dur);
+        src.start(t0);
+        src.stop(t0 + dur);
     }
 
     /** Pitched blip — melodies, stingers. */
@@ -99,6 +100,23 @@ const SFX = (() => {
             tone({ freq: 196, dur: 0.22, type: 'sawtooth', gain: 0.10 });
             tone({ freq: 293.66, dur: 0.28, type: 'triangle', gain: 0.16, delay: 0.12 });
             burst({ dur: 0.16, freq: 1800, q: 2.2, gain: 0.16, sweep: -900 });
+        },
+
+        /* Betting: a knuckle rap for check, a short chip stack for call, a
+           heavier double stack for bet or raise, a soft card slide for fold. */
+        check() {
+            burst({ dur: 0.07, type: 'lowpass', freq: 420, q: 0.9, gain: 0.34 });
+            burst({ dur: 0.06, type: 'lowpass', freq: 380, q: 0.9, gain: 0.26, delay: 0.09 });
+        },
+        call() {
+            [0, 0.05, 0.1].forEach(d => burst({ dur: 0.045, freq: 5000 - d * 4000, q: 3, gain: 0.14, delay: d }));
+        },
+        bet() {
+            [0, 0.04, 0.08, 0.14, 0.18].forEach(d => burst({ dur: 0.05, freq: 4600 - d * 3000, q: 3, gain: 0.17, delay: d }));
+            tone({ freq: 220, dur: 0.12, type: 'triangle', gain: 0.08, delay: 0.2 });
+        },
+        fold() {
+            burst({ dur: 0.22, type: 'bandpass', freq: 1400, q: 0.7, gain: 0.18, sweep: -900 });
         },
 
         win() {
