@@ -6,7 +6,7 @@
 const { Deck, cardFaceSVG, cardBackSVG, handTotal } = window.TJCards;
 const {
     tableProfiles,
-    tablePressureCost,
+    tableBetSize,
     tableAiMove,
     tableCallDecision,
     tableBoardDecision,
@@ -319,7 +319,7 @@ function renderSeat(seatState) {
 }
 
 function pressureAvailable() {
-    const cost = tablePressureCost(game.ante);
+    const cost = tableBetSize(game.ante, game.shared.length);
     return game.phase === PHASE.PLAYER
         && game.pressureUsedAt !== game.boardVersion
         && you().stack >= cost
@@ -367,22 +367,22 @@ function renderControls() {
     el.handBtn.disabled = !yourTurn || you().privateLeft <= 0;
     el.lockBtn.disabled = !yourTurn;
     el.handLeft.textContent = you().privateLeft;
-    const cost = tablePressureCost(game.ante);
+    const cost = tableBetSize(game.ante, game.shared.length);
     el.pressureCost.textContent = money(cost);
     el.pressureBtn.disabled = !pressureAvailable();
     if (game.pressureUsedAt === game.boardVersion) {
         el.pressureNote.textContent = boardOpen
-            ? 'Pressure spent · next Board reopens'
-            : 'Pressure spent · board sealed';
+            ? 'Bet made · next Board reopens betting'
+            : 'Bet made · board sealed';
     } else if (you().stack < cost) {
-        el.pressureNote.textContent = 'Not enough chips to raise';
+        el.pressureNote.textContent = 'Not enough chips to bet';
     } else {
-        el.pressureNote.textContent = 'One bet per board';
+        el.pressureNote.textContent = 'One bet per board · others call or fold';
     }
 
     if (game.phase === PHASE.RESPOND && game.pendingResponse) {
         const { aggressor, cost: responseCost } = game.pendingResponse;
-        el.responseKicker.textContent = `${aggressor.name} applies Pressure`;
+        el.responseKicker.textContent = `${aggressor.name} bets`;
         // A short stack can still call all-in rather than fold a made hand.
         const callCost = Math.min(responseCost, you().stack);
         el.responseText.textContent = callCost < responseCost
@@ -581,11 +581,39 @@ async function startHand() {
     render();
     await sleep(pace(360));
 
+    // The first seat to act rotates every hand, like a dealer button, so no
+    // seat (yours included) always speaks first.
+    const first = game.handNumber % game.seats.length;
+    if (first !== 0) {
+        await advanceFrom(first - 1);
+        return;
+    }
     game.turn = 0;
     game.phase = PHASE.PLAYER;
     you().lastAction = 'Your move';
     render();
-    setStatus('Your move — attack the <b>Board</b>, draw to your <b>Hand</b>, or <b>Lock</b>.');
+    setStatus('Your move — call the <b>Board</b>, draw to your <b>Hand</b>, <b>Lock</b>, or <b>Bet</b>.');
+    firstTurnCoach();
+}
+
+/** One brass callout on your first ever four-seat turn, then never again. */
+function firstTurnCoach() {
+    if (readJson('tj.table').coached) return;
+    writeJson('tj.table', { ...readJson('tj.table'), coached: true });
+    const coachEl = $('coach');
+    const target = el.turnPanel;
+    $('coachText').innerHTML = '<b>Board</b> deals a shared card to every seat that rides. <b>Hand</b> is yours alone, twice a hand. <b>Lock</b> freezes your total. <b>Bet</b> when your number is strong. Tap to close.';
+    coachEl.hidden = false;
+    requestAnimationFrame(() => {
+        const box = target.getBoundingClientRect();
+        const card = coachEl.getBoundingClientRect();
+        const left = Math.max(12, Math.min(window.innerWidth - card.width - 12, box.left + box.width / 2 - card.width / 2));
+        coachEl.style.left = `${left}px`;
+        coachEl.style.top = `${Math.max(12, box.top - card.height - 14)}px`;
+        coachEl.style.setProperty('--arrow-x', `${box.left + box.width / 2 - left}px`);
+    });
+    const dismiss = () => { coachEl.hidden = true; document.removeEventListener('pointerdown', dismiss, true); };
+    document.addEventListener('pointerdown', dismiss, true);
 }
 
 function breakActiveSeats() {
@@ -762,6 +790,7 @@ async function advanceFrom(after) {
         you().lastAction = 'Your move';
         render();
         setStatus('Your move — the table is waiting on your read.');
+        firstTurnCoach();
     } else {
         await runAiTurn(seatState);
     }
@@ -782,7 +811,7 @@ async function runAiTurn(seatState) {
         soft: current.soft,
         privateLeft: seatState.privateLeft,
         profile: seatState.profile,
-        pressureOpen: game.pressureUsedAt !== game.boardVersion && seatState.stack >= tablePressureCost(game.ante),
+        pressureOpen: game.pressureUsedAt !== game.boardVersion && seatState.stack >= tableBetSize(game.ante, game.shared.length),
         roll: Math.random()
     });
 
@@ -815,15 +844,15 @@ function aiResponds(target, cost) {
 async function resolvePressure(aggressor) {
     if (game.pressureUsedAt === game.boardVersion) return;
     const token = game.roundToken;
-    const cost = tablePressureCost(game.ante);
+    const cost = tableBetSize(game.ante, game.shared.length);
     game.pressureUsedAt = game.boardVersion;
     game.phase = PHASE.RESOLVING;
-    aggressor.lastAction = `PRESSURE · raised ${money(cost)}`;
+    aggressor.lastAction = `BET · ${money(cost)}`;
     commit(aggressor, cost);
     flashSeat(aggressor, 'seat-pressure');
     SFX.counter();
     render();
-    setStatus(`<b>${aggressor.name}</b> raises ${money(cost)} — the whole table must answer.`);
+    setStatus(`<b>${aggressor.name}</b> bets ${money(cost)} — everyone calls or folds.`);
     await sleep(pace(500));
 
     for (const target of game.seats.slice(1)) {
@@ -872,7 +901,7 @@ async function playerPressure() {
     await resolvePressure(you());
     if (game.phase === PHASE.OVER || await maybeFinish()) return;
     game.phase = PHASE.PLAYER;
-    you().lastAction = 'Pressure landed · choose your card line';
+    you().lastAction = 'Bet called · choose your card line';
     render();
     setStatus('The table answered. Now choose where the next risk goes.');
 }

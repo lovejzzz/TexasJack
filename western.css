@@ -7,10 +7,10 @@
 
 :root,
 .table-mode {
-    --font-display: 'Playfair Display', 'Bodoni 72', Didot, Georgia, serif;
-    --font-engraved: 'IM Fell English SC', 'Palatino Linotype', Palatino, Georgia, serif;
-    --font-ui: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-    --font-num: 'Playfair Display', Georgia, serif;
+    --font-display: "Playfair Display", "Bodoni 72", Didot, Georgia, serif;
+    --font-engraved: "IM Fell English SC", "Palatino Linotype", Palatino, Georgia, serif;
+    --font-ui: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --font-num: "Playfair Display", Georgia, serif;
 
     --night: #0c0a08;
     --walnut: #18110c;
@@ -56,7 +56,7 @@ body.table-mode {
     background-color: var(--night);
 }
 body::before {
-    content: '';
+    content: "";
     position: fixed;
     inset: 0;
     z-index: 0;
@@ -118,7 +118,7 @@ button:focus-visible { outline-color: var(--brass-hot); }
     letter-spacing: .18em;
 }
 .game-switch a[aria-current="page"],
-.table-mode .game-switch a[aria-current='page'] {
+.table-mode .game-switch a[aria-current="page"] {
     color: var(--walnut);
     background: linear-gradient(180deg, var(--brass-hot), var(--brass));
     box-shadow: none;
@@ -254,28 +254,6 @@ button:focus-visible { outline-color: var(--brass-hot); }
 .lane.perfect-win { animation: none; }
 .lane.winner .card { filter: drop-shadow(0 0 16px rgba(236, 210, 155, .38)); }
 .lane.perfect-win .card { filter: drop-shadow(0 0 22px rgba(236, 210, 155, .6)); }
-
-.dealer-pressure,
-.dealer-counter {
-    padding: 3px 9px;
-    border-radius: 2px;
-    background: none;
-    border: 1px solid var(--hair);
-    box-shadow: none;
-    color: var(--ink-dim);
-    font-family: var(--font-engraved);
-    font-size: clamp(10px, 1.25vh, 12px);
-    font-weight: 400;
-    letter-spacing: .08em;
-    text-transform: none;
-}
-.dealer-pressure[data-level="0"] { display: none; }
-.dealer-pressure[data-level="1"] { color: var(--brass-hot); border-color: var(--hair-strong); }
-.dealer-pressure[data-level="2"] { color: var(--warn); border-color: rgba(224, 165, 90, .6); background: none; }
-.dealer-pressure[data-level="3"] { color: #f08a6e; border-color: rgba(184, 67, 47, .8); background: rgba(184, 67, 47, .12); box-shadow: none; }
-.dealer-counter { color: var(--brass-hot); border-color: var(--hair-strong); }
-.dealer-counter.locked { display: none; }
-.dealer-counter.spent { opacity: .45; filter: none; }
 
 @media (min-width: 900px) and (min-height: 561px) {
     .lane { background: none; box-shadow: none; }
@@ -416,7 +394,7 @@ button:focus-visible { outline-color: var(--brass-hot); }
     font-weight: 500;
     letter-spacing: 0;
 }
-@media (hover: none) { .btn kbd, .money-btn kbd, .pressure-action kbd { display: none; } }
+@media (hover: none) { .btn kbd, .pressure-action kbd { display: none; } }
 
 /* Hierarchy is weight, not hue: every action is leather except the one
    that moves the hand forward, which is struck in brass. */
@@ -511,26 +489,8 @@ button:focus-visible { outline-color: var(--brass-hot); }
 }
 .table-mode .ante-chips { filter: none; }
 
-.mini-btn {
-    min-height: 38px;
-    border-radius: 4px;
-    color: var(--ink-dim);
-    background: transparent;
-    border: 1px solid var(--hair);
-    font-weight: 600;
-    letter-spacing: .16em;
-}
-.mini-btn:hover:not(:disabled) { color: var(--bone); background: rgba(201, 160, 99, .1); }
-.mini-btn.again:not(:disabled) {
-    color: #1a110a;
-    background: linear-gradient(180deg, var(--brass-hot), var(--brass));
-    border-color: var(--brass-hot);
-}
-
 /* ---- Press / Scout / goal: tooled plaques -------------------------------- */
 
-.table-goal,
-.money-btn,
 .pressure-action,
 .ante-copy,
 .table-mode .ante-copy {
@@ -539,13 +499,7 @@ button:focus-visible { outline-color: var(--brass-hot); }
     background: linear-gradient(180deg, rgba(59, 37, 22, .55), rgba(20, 13, 8, .7));
     box-shadow: inset 0 1px 0 rgba(255, 230, 190, .06);
 }
-.table-goal.cleared {
-    border-color: rgba(156, 192, 143, .6);
-    background: linear-gradient(180deg, rgba(70, 90, 60, .45), rgba(20, 13, 8, .7));
-}
-.challenge-label,
-.money-choice-head,
-.money-kicker,
+
 .ante-copy span,
 .pressure-action small,
 .pressure-prompt small {
@@ -556,22 +510,8 @@ button:focus-visible { outline-color: var(--brass-hot); }
     letter-spacing: .06em;
     text-transform: none;
 }
-.money-choice-head small { font-family: var(--font-ui); font-size: 10px; letter-spacing: .02em; color: var(--ink-faint); text-transform: none; }
-.table-goal b { font-weight: 500; }
-.table-goal em { font-family: var(--font-display); color: var(--brass-hot); }
-.money-btn {
-    color: var(--bone);
-    letter-spacing: .14em;
-}
-.money-btn b { font-family: var(--font-display); letter-spacing: .02em; }
-.money-icon { color: var(--brass-hot); border-color: var(--hair); background: none; }
-.money-btn.scout .money-icon { color: #c7cbd0; border-color: rgba(199, 203, 208, .35); }
-.money-btn.scout b { color: #d7dbe0; }
-.money-btn.scout:not(:disabled) { border-color: rgba(199, 203, 208, .4); }
-.money-btn.raise:not(:disabled) { border-color: var(--hair-strong); background: linear-gradient(180deg, rgba(110, 78, 40, .5), rgba(30, 19, 10, .75)); }
-.money-btn:hover:not(:disabled) { border-color: var(--brass-hot); transform: translateY(-2px); }
-.money-detail { color: var(--ink-faint); text-transform: none; letter-spacing: .02em; font-weight: 500; }
-.money-btn kbd, .pressure-action kbd { opacity: .4; border-radius: 3px; }
+
+ .pressure-action kbd { opacity: .4; border-radius: 3px; }
 
 .pressure-action { color: var(--bone); }
 .pressure-action:not(:disabled) { border-color: rgba(184, 67, 47, .55); animation: none; }
@@ -628,7 +568,7 @@ button:focus-visible { outline-color: var(--brass-hot); }
 }
 .result-stamp::after {
     /* ink wear */
-    content: '';
+    content: "";
     position: absolute;
     inset: -8px;
     background: var(--grain);
@@ -660,7 +600,6 @@ button:focus-visible { outline-color: var(--brass-hot); }
     font-family: var(--font-display);
     font-style: italic;
 }
-.result-insight.goal-cleared { color: var(--brass-hot); border-color: var(--hair-strong); box-shadow: none; }
 
 .money-fly { font-family: var(--font-display); color: var(--brass-hot); text-shadow: 0 0 18px rgba(201, 160, 99, .5); }
 .money-fly.negative { color: #e88a74; }
@@ -707,20 +646,6 @@ button:focus-visible { outline-color: var(--brass-hot); }
     font-size: 18px;
 }
 .modal-close:hover { background: rgba(201, 160, 99, .12); }
-
-.mode-switch button {
-    border-radius: 5px;
-    border: 1px solid var(--hair);
-    background: rgba(0, 0, 0, .25);
-    color: var(--ink-dim);
-}
-.mode-switch button b { font-family: var(--font-display); font-size: 15px; font-weight: 600; }
-.mode-switch button[aria-pressed="true"] {
-    border-color: var(--brass);
-    background: rgba(201, 160, 99, .1);
-    box-shadow: inset 0 0 0 1px rgba(201, 160, 99, .3);
-}
-.mode-switch button[aria-pressed="true"] b { color: var(--brass-hot); }
 
 .steps {
     list-style: none;
@@ -775,7 +700,7 @@ button:focus-visible { outline-color: var(--brass-hot); }
     letter-spacing: .06em;
 }
 .more summary::-webkit-details-marker { display: none; }
-.more summary::after { content: '+'; font-family: var(--font-ui); font-size: 18px; color: var(--brass); transition: transform .2s; }
+.more summary::after { content: "+"; font-family: var(--font-ui); font-size: 18px; color: var(--brass); transition: transform .2s; }
 .more[open] summary::after { transform: rotate(45deg); }
 .more .rules { margin-top: 10px; }
 .rules li { font-size: 13px; color: var(--ink-dim); }
@@ -947,14 +872,10 @@ body { font-variant-numeric: lining-nums; }
 
 /* Narrow tables hide the rival status line, so carry the state as a word. */
 @media (max-width: 1100px) {
-    .table-mode .rival-seat[data-state="locked"] .seat-range::after { content: ' · Lock'; }
-    .table-mode .rival-seat[data-state="folded"] .seat-range::after { content: ' · Fold'; }
-    .table-mode .rival-seat[data-state="bust"] .seat-range::after { content: ' · Bust'; }
+    .table-mode .rival-seat[data-state="locked"] .seat-range::after { content: " · Lock"; }
+    .table-mode .rival-seat[data-state="folded"] .seat-range::after { content: " · Fold"; }
+    .table-mode .rival-seat[data-state="bust"] .seat-range::after { content: " · Bust"; }
     .table-mode .rival-seat .seat-range { white-space: nowrap; }
-}
-
-@media (max-width: 760px) {
-    .money-kicker { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
 
 /* ==========================================================================
@@ -1025,23 +946,7 @@ body { font-variant-numeric: lining-nums; }
     transition: transform .6s cubic-bezier(.2, .8, .2, 1);
 }
 
-.table-min {
-    align-self: center;
-    margin-left: 4px;
-    color: var(--ink-faint);
-    font-family: var(--font-engraved);
-    font-size: 12px;
-    letter-spacing: .06em;
-    white-space: nowrap;
-}
-
 /* Press is the one money action now: a single plaque, centred. */
-.play-money {
-    display: flex;
-    justify-content: center;
-    width: min(460px, 100%);
-}
-.play-money .money-btn { width: 100%; }
 
 /* ---- Wanted poster ------------------------------------------------------- */
 
@@ -1128,7 +1033,7 @@ body { font-variant-numeric: lining-nums; }
 .coach p { margin: 0; }
 .coach b { color: var(--brass-hot); }
 .coach::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 100%;
     left: var(--arrow-x);
@@ -1150,7 +1055,7 @@ body { font-variant-numeric: lining-nums; }
     .lane-dealer .portrait { width: 28px; height: 28px; }
     .rival-meta { justify-content: flex-start; font-size: 11px; }
     .purse-track { width: 44px; }
-    .table-min { flex-basis: 100%; text-align: center; margin: 2px 0 0; }
+    
 }
 
 @media (max-width: 480px) {
@@ -1200,7 +1105,7 @@ body { font-variant-numeric: lining-nums; }
 }
 .rival-say[hidden] { display: none; }
 .rival-say::before {
-    content: '';
+    content: "";
     position: absolute;
     bottom: 100%;
     left: 50%;
@@ -1223,3 +1128,33 @@ body { font-variant-numeric: lining-nums; }
     .rival-say { top: 70px; font-size: 13px; }
     .match-info { text-align: left; font-size: 11px; }
 }
+
+/* ---- Hand log ------------------------------------------------------------ */
+
+.log-card { width: min(560px, 100%); }
+.log-hand {
+    padding: 12px 0 10px;
+    border-top: 1px solid var(--hair);
+}
+.log-hand:first-of-type { border-top: 0; }
+.log-hand h3 {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 6px;
+    color: var(--bone);
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+}
+.log-hand h3 b { font-family: var(--font-display); font-variant-numeric: lining-nums; }
+.log-hand h3 b.win { color: var(--good); }
+.log-hand h3 b.lose { color: #e88a74; }
+.log-hand h3 b.push { color: var(--ink-dim); }
+.log-hand ol { margin: 0; padding-left: 20px; display: grid; gap: 3px; }
+.log-hand li { color: var(--ink-dim); font-size: 13px; line-height: 1.45; }
+.log-hand li::marker { color: var(--brass-deep); font-size: 11px; }
+.log-empty { color: var(--ink-faint); font-style: italic; }

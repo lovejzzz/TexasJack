@@ -15,7 +15,8 @@ const {
     duelAnte,
     duelBetSize,
     duelStrength,
-    duelDealerAction
+    duelDealerAction,
+    duelMemory
 } = window.TJRules;
 
 /* ---- DOM ----------------------------------------------------------------- */
@@ -60,6 +61,10 @@ const el = {
     purseBar: $('purseBar'),
     matchInfo: $('matchInfo'),
     roundInfo: $('roundInfo'),
+    logBtn: $('logBtn'),
+    logModal: $('logModal'),
+    logClose: $('logClose'),
+    logList: $('logList'),
     poster: $('poster'),
     posterCard: $('posterCard'),
     coach: $('coach'),
@@ -158,6 +163,12 @@ const game = {
     handStartStake: 0,
     practice: false,
     lastVerdict: '',
+    reads: {
+        foldsToYou: savedCount(persisted.reads?.foldsToYou),
+        bluffsSeen: savedCount(persisted.reads?.bluffsSeen)
+    },
+    tips: Array.isArray(persisted.tips) ? persisted.tips : [],
+    log: [],
     settled: true,
     hands: savedHands,
     wins: Math.min(savedHands, savedCount(persisted.wins)),
@@ -166,8 +177,23 @@ const game = {
     privateLeft: PRIVATE_DRAWS
 };
 
-/** The house dealer on the current rung of the ladder. */
-const rival = () => ladderRival(game.rung);
+/**
+ * The house dealer on the current rung. After each full clear of the ladder
+ * every purse, ante and bounty grows by half again, so a legend's second
+ * climb is played for bigger money.
+ */
+const legendScale = () => 1 + 0.5 * game.cleared;
+const rival = () => {
+    const base = ladderRival(game.rung);
+    const k = legendScale();
+    return k === 1 ? base : {
+        ...base,
+        purse: Math.round(base.purse * k),
+        ante: Math.round(base.ante * k),
+        bounty: Math.round(base.bounty * k)
+    };
+};
+const rungOf = r => ladderRivals.findIndex(x => x.id === r.id);
 /** The total this dealer stands on — and takes board cards below. */
 const standsOn = () => rival().standsOn;
 /** This hand's ante, or the next hand's between hands. */
@@ -179,6 +205,7 @@ const pot = () => game.playerIn + game.dealerIn;
 if (game.purse > rival().purse || game.purse < currentAnte()) {
     game.purse = rival().purse;
     game.matchHand = 0;
+    game.reads = { foldsToYou: 0, bluffsSeen: 0 };
 }
 if (game.bankroll < currentAnte()) {
     const fall = ladderFall(game.rung);
@@ -186,6 +213,7 @@ if (game.bankroll < currentAnte()) {
     game.bankroll = fall.stake;
     game.purse = rival().purse;
     game.matchHand = 0;
+    game.reads = { foldsToYou: 0, bluffsSeen: 0 };
 }
 
 function persist() {
@@ -199,6 +227,8 @@ function persist() {
         matchHand: game.matchHand + (live && !game.practice ? 1 : 0),
         cleared: game.cleared,
         tutorialDone: game.tutorialDone,
+        reads: game.reads,
+        tips: game.tips,
         hands: game.hands,
         wins: game.wins,
         best: game.best,
@@ -440,7 +470,7 @@ function updateMoney(bump = false) {
     [el.bankroll, el.pot].forEach(node => { node._moneyAnimation = (node._moneyAnimation || 0) + 1; });
     el.bankroll.textContent = money(game.bankroll);
     el.pot.textContent = money(pot());
-    el.streak.textContent = `${game.rung + 1} / ${ladderRivals.length}`;
+    el.streak.textContent = `${game.rung + 1} / ${ladderRivals.length}${game.cleared ? ` ★${game.cleared}` : ''}`;
     renderRival();
     if (bump) {
         el.bankroll.classList.remove('bump');
@@ -491,6 +521,7 @@ const LINES = {
         win: ['Steady wins.', 'Patience pays.'],
         lose: ['Hm. Well played.', 'That one’s yours.'],
         half: ['Mara straightens her hat.'],
+        caught: ['So that’s how you play.', 'I’ll remember that.'],
         rise: ['The lamp’s burning low.']
     },
     shark: {
@@ -502,6 +533,7 @@ const LINES = {
         win: ['Never trust a smile.', 'Too easy.'],
         lose: ['Enjoy it while it lasts.', 'Hm.'],
         half: ['Vex stops smiling.'],
+        caught: ['Ha. I knew it.', 'Bluffing a shark?'],
         rise: ['Stakes go up. Keep up.']
     },
     spark: {
@@ -513,6 +545,7 @@ const LINES = {
         win: ['The Spark strikes!', 'Told you.'],
         lose: ['Ah, that stings!', 'Next one’s mine.'],
         half: ['Sol loosens his bandana.'],
+        caught: ['Sneaky! I like it.', 'You little outlaw.'],
         rise: ['Higher stakes, more fun!']
     }
 };
@@ -528,6 +561,55 @@ function say(kind) {
     el.rivalSay.classList.add('pop');
     clearTimeout(say.timer);
     say.timer = setTimeout(() => { el.rivalSay.hidden = true; }, 2400);
+}
+
+/* ---- Hand log ------------------------------------------------------------ */
+
+const SUIT_GLYPH = { S: '♠', H: '♥', D: '♦', C: '♣' };
+const cardLabel = card => `${card.rank}${SUIT_GLYPH[card.suit] || ''}`;
+
+/** Opens a new entry for the hand about to be dealt; keeps the last eight. */
+function logHand(title) {
+    game.log.unshift({ title, steps: [], verdict: '' });
+    game.log.length = Math.min(game.log.length, 8);
+}
+
+function logStep(text) {
+    if (game.log[0]) game.log[0].steps.push(text);
+}
+
+function renderLog() {
+    if (!game.log.length) {
+        el.logList.innerHTML = '<p class="log-empty">Play a hand and every move lands here.</p>';
+        return;
+    }
+    el.logList.innerHTML = game.log.map(hand => `
+        <section class="log-hand">
+            <h3><span>${hand.title}</span>${hand.verdict}</h3>
+            <ol>${hand.steps.map(step => `<li>${step}</li>`).join('')}</ol>
+        </section>`).join('');
+}
+
+function openLog() {
+    renderLog();
+    el.logModal.classList.remove('hidden');
+    el.table.setAttribute('inert', '');
+    requestAnimationFrame(() => el.logClose.focus());
+}
+
+function closeLog() {
+    if (el.logModal.classList.contains('hidden')) return;
+    el.logModal.classList.add('hidden');
+    el.table.removeAttribute('inert');
+    requestAnimationFrame(() => el.logBtn.focus());
+}
+
+/** A one-time callout the first time a situation comes up outside the guided hands. */
+function tipOnce(key, target, html) {
+    if (!game.tutorialDone || game.tips.includes(key) || game.tutorialStep) return;
+    game.tips.push(key);
+    persist();
+    coach(target, html);
 }
 
 /* ---- Controls ------------------------------------------------------------ */
@@ -654,6 +736,8 @@ async function startHand() {
     hideOverlay();
     syncControls();
     updateShoe();
+    logHand(game.practice ? `Practice hand · vs ${r.name}` : `Hand ${game.matchHand + 1} · vs ${r.name}`);
+    logStep(`Antes in: ${money(ante)} each.`);
     setStatus(`Antes in — ${money(ante)} each.`);
     commit('player', ante);
     commit('dealer', ante);
@@ -664,6 +748,7 @@ async function startHand() {
     await layOnBoard(drawCard());
     highlightLane(null);
     updateTotals();
+    logStep(`You hold ${cardLabel(game.player[0])}; the board opens ${cardLabel(game.shared[0])}${game.dealerBoard.length ? '' : ' (yours only)'}.`);
 
     const folded = await bettingRound();
     if (folded) return foldWin(folded);
@@ -679,6 +764,9 @@ function toDrawing() {
     }
     syncControls();
     const p = playerTotal().total;
+    if (p >= 12 && p < 21 && game.privateLeft > 0) {
+        tipOnce('hand', el.handBtn, `<b>Hand</b> keeps the next card for you alone — ${rival().name} can't use it, and it's hidden from her. Two per hand.`);
+    }
     const left = DUEL_ROUNDS - game.round;
     if (p === 21) setStatus('Twenty-one — <b>Stand</b> and collect.');
     else setStatus(`Your move — <b>Board</b>, <b>Hand</b> or <b>Stand</b>.${left > 0 ? ` ${left} betting round${left > 1 ? 's' : ''} left.` : ''}`);
@@ -728,13 +816,16 @@ async function playerDraw(target) {
     if (target === 'board') {
         setStatus('Onto the board — <b>this card counts for both</b>.');
         await sleep(360);
+        const took = dealerTotal().total < standsOn();
         await layOnBoard(card);
+        logStep(`You send ${cardLabel(card)} to the board — ${took ? `${rival().name} takes it too` : 'yours only, she is pat'}. You: ${playerTotal().total}.`);
     } else {
         game.boardBoost = false;
         setStatus('Into your hand — <b>yours alone</b>.');
         await sleep(360);
         highlightLane('player');
         await dealTo(game.player, el.playerCards, card);
+        logStep(`You keep ${cardLabel(card)} in your hand. You: ${playerTotal().total}.`);
     }
     await sleep(220);
     highlightLane(null);
@@ -789,21 +880,28 @@ async function bettingRound() {
         const theirs = actor === 'player' ? game.dealerIn : game.playerIn;
         const unit = duelBetSize(game.ante, game.round);
 
-        if (act === 'fold') return actor;
+        const who = actor === 'player' ? 'You' : rival().name;
+        if (act === 'fold') {
+            logStep(`${who} fold${actor === 'player' ? '' : 's'}.`);
+            return actor;
+        }
         if (act === 'check') {
+            logStep(`${who} check${actor === 'player' ? '' : 's'}.`);
             if (actor === 'dealer') return null;
             actor = other;
             continue;
         }
         if (act === 'call') {
-            commit(actor, theirs - mine);
+            const paid = commit(actor, theirs - mine);
+            logStep(`${who} call${actor === 'player' ? '' : 's'} ${money(paid)}.`);
             return null;
         }
         // bet or raise: match what is owed, then add one unit — never more
         // than the other side can still answer.
         const otherCan = actor === 'player' ? game.purse : game.bankroll;
         const owed = theirs - mine;
-        commit(actor, owed + Math.min(unit, otherCan));
+        const paid = commit(actor, owed + Math.min(unit, otherCan));
+        logStep(`${who} ${act === 'raise' ? 'raise' : 'bet'}${actor === 'player' ? '' : 's'} — ${money(paid)} in.`);
         if (act === 'raise') game.raises += 1;
         if (actor === 'player') game.aggression += 1;
         facing = true;
@@ -815,6 +913,13 @@ async function bettingRound() {
         }
     }
     return null;
+}
+
+function playActionSound(act) {
+    if (act === 'check') SFX.check();
+    else if (act === 'call') SFX.call();
+    else if (act === 'fold') SFX.fold();
+    else SFX.bet();
 }
 
 /** Waits for your betting decision. */
@@ -829,6 +934,9 @@ function playerTurn(facing) {
         coach(el.betBtn, `You're on 20 and ${rival().name} can only show a range. <b>Bet</b> — she stays in only with a real hand.`);
     }
     syncControls();
+    if (facing) {
+        tipOnce('facing', el.callBtn, `${rival().name} bet into you. <b>Call</b> to stay in, <b>Raise</b> to put in more, or <b>Fold</b> and give up the pot.`);
+    }
     setStatus(facing
         ? `${rival().name} bets — <b>call ${money(call)}</b>, raise, or fold.`
         : `Betting round ${game.round} — <b>check</b> or <b>bet</b>.`);
@@ -846,7 +954,7 @@ function playerBet(act) {
     const resolve = game.betResolve;
     game.betResolve = null;
     game.phase = PHASE.RESOLVING;
-    SFX.button();
+    playActionSound(act);
     syncControls();
     const { call } = betAmounts();
     setStatus({
@@ -882,7 +990,7 @@ async function dealerTurn(facing) {
             privateLeft: game.privateLeft,
             standsOn: standsOn(),
             aggression: game.aggression,
-            belief: r.belief
+            belief: duelMemory(r, game.reads).belief
         });
         act = duelDealerAction({
             strength,
@@ -893,7 +1001,8 @@ async function dealerTurn(facing) {
             raisesLeft: r.maxRaises - game.raises,
             boardBoost: game.boardBoost,
             roll: Math.random(),
-            jitter: (Math.random() - 0.5) * 0.06
+            jitter: (Math.random() - 0.5) * 0.06,
+            callShift: duelMemory(r, game.reads).callShift
         });
         // Nothing to raise into: an all-in player can only be called.
         if (act === 'raise' && game.bankroll <= 0) act = 'call';
@@ -901,6 +1010,7 @@ async function dealerTurn(facing) {
     }
 
     say(act);
+    playActionSound(act);
     if (act === 'bet' || act === 'raise') {
         laneOf.dealer.classList.remove('dealer-bets');
         void laneOf.dealer.offsetWidth;
@@ -954,10 +1064,16 @@ async function dealerPlay() {
 
     const p = playerTotal().total;
     const name = rival().name;
+    logStep(`You stand on ${p}. ${name} shows ${cardLabel(game.dealer[0])} — ${dealerTotal().total}.`);
+    // A bet that reaches showdown on a weak number is a bluff she has now seen.
+    if (game.aggression > 0 && p < 17 && !game.practice) {
+        game.reads.bluffsSeen += 1;
+        setTimeout(() => say('caught'), 300);
+    }
     while (true) {
         const dealerState = dealerTotal();
         const d = dealerState.total;
-        const move = dealerMove({ dealerTotal: d, playerTotal: p, soft: dealerState.soft, pressureAvailable: false, standsOn: standsOn() });
+        const move = dealerMove({ dealerTotal: d, playerTotal: p, soft: dealerState.soft, standsOn: standsOn() });
         if (!move.draw) {
             if (move.intent === 'protect') game.dealerIntent = { text: `protects ${d} over ${p}`, tone: 'tell-pat' };
             else if (move.intent === 'hold-push') game.dealerIntent = { text: `holds the ${d} push`, tone: 'tell-maybe' };
@@ -972,6 +1088,7 @@ async function dealerPlay() {
         await sleep(560);
         await dealTo(game.dealer, el.dealerCards, drawCard());
         updateTotals();
+        logStep(`${name} draws ${cardLabel(game.dealer[game.dealer.length - 1])} → ${dealerTotal().total}.`);
         if (dealerTotal().total > 21) break;
     }
 
@@ -994,6 +1111,7 @@ function markBust(container) {
 
 /** A fold ends the hand: the other side takes the pot, no cards shown. */
 function foldWin(folder) {
+    if (folder === 'dealer' && game.aggression > 0 && !game.practice) game.reads.foldsToYou += 1;
     return folder === 'dealer'
         ? finish('win', `${rival().name} folds — the pot is yours.`, { fold: true })
         : finish('lose', `You fold — ${rival().name} takes the pot.`, { fold: true });
@@ -1087,6 +1205,7 @@ async function finish(outcome, message, { bust = false, fold = false } = {}) {
         game.rung = last ? 0 : game.rung + 1;
         game.purse = rival().purse;
         game.matchHand = 0;
+        game.reads = { foldsToYou: 0, bluffsSeen: 0 };
     } else if (game.bankroll < nextAnte) {
         const fall = ladderFall(game.rung);
         game.ladderEvent = { kind: 'fall', rival: r };
@@ -1094,6 +1213,7 @@ async function finish(outcome, message, { bust = false, fold = false } = {}) {
         game.bankroll = fall.stake;
         game.purse = rival().purse;
         game.matchHand = 0;
+        game.reads = { foldsToYou: 0, bluffsSeen: 0 };
     }
     if (game.tutorialStep === 'h1-played') game.tutorialStep = 'h2-intro';
     if (game.tutorialStep === 'h2-done') {
@@ -1148,6 +1268,10 @@ async function finish(outcome, message, { bust = false, fold = false } = {}) {
         : outcome === 'push' ? '<b>Push</b>'
         : `<b>You lost ${detail.split(' · ')[0]}</b>`;
     game.lastVerdict = `${verdict} — ${message}`;
+    if (game.log[0]) {
+        game.log[0].steps.push(message.replace(/<[^>]+>/g, ''));
+        game.log[0].verdict = `<b class="${outcome}">${outcome === 'push' ? 'Push' : detail.split(' · ')[0]}</b>`;
+    }
     setStatus(game.lastVerdict);
     game.settled = true;
     clearTimeout(openBetting.timer);
@@ -1462,7 +1586,7 @@ function stepConfetti() {
 
 const POSTER_COPY = {
     intro: r => ({
-        eyebrow: `Rung ${ladderRivals.indexOf(r) + 1} of ${ladderRivals.length}`,
+        eyebrow: `Rung ${rungOf(r) + 1} of ${ladderRivals.length}`,
         title: `${r.name}, ${r.title}`,
         body: r.ruleDetail,
         stats: [['House rule', r.rule], ['Purse', money(r.purse)], ['Opening ante', money(r.ante)], ['Bounty', money(r.bounty)]],
@@ -1490,7 +1614,7 @@ const POSTER_COPY = {
     fall: r => ({
         eyebrow: 'Run out of town',
         title: `${r.name} took your stake`,
-        body: game.rung === ladderRivals.indexOf(r)
+        body: game.rung === rungOf(r)
             ? `You buy back in with a fresh ${money(LADDER_STAKE)} at the same table.`
             : `You drop back to ${rival().name}'s table with a fresh ${money(LADDER_STAKE)}.`,
         stats: [['New stake', money(game.bankroll)]],
@@ -1632,6 +1756,9 @@ el.handBtn.addEventListener('click', () => playerDraw('hand'));
 el.standBtn.addEventListener('click', playerStand);
 
 el.rulesBtn.addEventListener('click', openRules);
+el.logBtn.addEventListener('click', openLog);
+el.logClose.addEventListener('click', closeLog);
+el.logModal.addEventListener('click', e => { if (e.target === el.logModal) closeLog(); });
 el.rulesClose.addEventListener('click', closeRules);
 el.rulesGo.addEventListener('click', closeRules);
 el.rulesModal.addEventListener('click', e => { if (e.target === el.rulesModal) closeRules(); });
@@ -1642,7 +1769,8 @@ el.overlay.addEventListener('click', () => { hideOverlay(); openBetting(); });
 document.addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const key = e.key.toLowerCase();
-    if (key === 'escape') { closeRules(); hideOverlay(); return; }
+    if (key === 'escape') { closeRules(); closeLog(); hideOverlay(); return; }
+    if (!el.logModal.classList.contains('hidden')) return;
     // A poster owns the screen until it is answered; its button takes Enter.
     if (!el.poster.classList.contains('hidden')) return;
     if (!el.rulesModal.classList.contains('hidden')) {
@@ -1680,6 +1808,7 @@ document.addEventListener('keydown', e => {
         if (!el.dealBtn.hidden && !el.dealBtn.disabled) startHand();
     }
     else if (key === 'm') { SFX.toggleMute(); syncSoundIcon(); }
+    else if (key === 'l') { openLog(); }
     else if (key === '?' || key === '/') { openRules(); }
 });
 

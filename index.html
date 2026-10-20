@@ -7,11 +7,9 @@
     <meta name="description" content="Texas Jack — Blackjack meets Texas Hold'em. Duel the dealer or face three distinct rivals at the four-seat table.">
     <title>Texas Jack</title>
     <link rel="icon" type="image/png" href="asset/title.png">
-    <link rel="stylesheet" href="styles.css?v=duel-1">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400;1,600&display=swap">
-    <link rel="stylesheet" href="western.css?v=duel-1">
+    <link rel="stylesheet" href="styles.css?v=duel-2">
+    <link rel="stylesheet" href="fonts.css?v=1">
+    <link rel="stylesheet" href="western.css?v=duel-2">
 </head>
 <body>
 <div class="table">
@@ -45,6 +43,12 @@
                     <svg><use href="asset/ui-icons.svg#rules"></use></svg>
                 </span>
                 <span class="tool-label">Rules</span>
+            </button>
+            <button class="icon-btn" id="logBtn" title="Hand log (L)" aria-label="Hand log">
+                <span class="tool-core" aria-hidden="true">
+                    <svg><use href="asset/ui-icons.svg#log"></use></svg>
+                </span>
+                <span class="tool-label">Hand log</span>
             </button>
             <button class="icon-btn" id="soundBtn" title="Sound (M)" aria-label="Toggle sound">
                 <span class="tool-core" aria-hidden="true">
@@ -202,11 +206,21 @@
             <p class="shortcuts">
                 <kbd>↵</kbd> deal · <kbd>X</kbd> check · <kbd>R</kbd> bet / raise · <kbd>C</kbd> call ·
                 <kbd>F</kbd> fold · <kbd>B</kbd> board · <kbd>H</kbd> hand · <kbd>S</kbd> stand ·
-                <kbd>M</kbd> mute</p>
+                <kbd>L</kbd> hand log · <kbd>M</kbd> mute</p>
         </details>
         <div class="modal-foot">
             <button class="btn btn-deal modal-cta" id="rulesGo">Back to the table</button>
         </div>
+    </div>
+</div>
+
+<!-- Hand log --------------------------------------------------------------- -->
+<div id="logModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="logTitle">
+    <div class="modal-card log-card">
+        <button class="modal-close" id="logClose" aria-label="Close">×</button>
+        <h2 id="logTitle">Hand log</h2>
+        <p class="lede">The last eight hands, move by move. Folded hands stay hidden.</p>
+        <div id="logList"></div>
     </div>
 </div>
 
@@ -219,9 +233,9 @@
 
 <canvas id="fx" aria-hidden="true"></canvas>
 
-<script src="cards.js?v=duel-1"></script>
-<script src="audio.js?v=duel-1"></script>
-<script src="rules.js?v=duel-1"></script>
-<script src="game.js?v=duel-1"></script>
+<script src="cards.js?v=duel-2"></script>
+<script src="audio.js?v=duel-2"></script>
+<script src="rules.js?v=duel-2"></script>
+<script src="game.js?v=duel-2"></script>
 </body>
 </html>

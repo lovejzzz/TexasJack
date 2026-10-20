@@ -74,4 +74,10 @@
       <path d="M12 2v2m0 16v2M2 12h2m16 0h2"/>
     </g>
   </symbol>
+  <symbol id="log" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6.5 3.8h9.2l2.8 2.8v13.1a1.5 1.5 0 0 1-1.5 1.5H6.5A1.5 1.5 0 0 1 5 19.7V5.3a1.5 1.5 0 0 1 1.5-1.5Z"/>
+      <path d="M8.4 9.2h7.2M8.4 12.6h7.2M8.4 16h4.6"/>
+    </g>
+  </symbol>
 </svg>

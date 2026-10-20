@@ -53,7 +53,14 @@ A thinking player wins about 69% / 60% / 60% of matches (roughly 14 hands each);
 betting every hand loses money against all three.
 
 The first visit opens on Mara's wanted poster, then two guided hands: one shows
-a board card breaking the dealer, the other a bet that makes her fold.
+a board card breaking the dealer, the other a bet that makes her fold. After
+that, one-time tips appear the first time you face a bet or can keep a card.
+
+Rivals remember you for the length of a match: fold to your bets too often and
+they start calling lighter; see you bet a weak hand at showdown and they trust
+your bets less. Every clear of the ladder raises all purses, antes and bounties
+by half again for the next climb (★ marks your clears). The **hand log** (`L`)
+keeps the last eight hands move by move.
 
 ## Four-seat table
 
@@ -68,9 +75,10 @@ another seat reveals a Board card, every active player chooses **Ride** or
 **Lock** without seeing the card. The caller rides automatically. Locking
 freezes the number, so later Board cards leave that seat untouched.
 
-Once per board state, any seat can apply **Pressure** for half the ante. Every
-remaining player must Call or Fold. A new Board card reopens the betting window.
-The highest live total at or below 21 wins the pot; ties split it.
+Once per board, any seat can **Bet** — one ante while only the Opening board is
+out, two after the Turn — and everyone else calls or folds, the same fixed
+limits as Quick Duel. The highest live total at or below 21 wins the pot; ties
+split it. The first seat to act rotates every hand, like a dealer button.
 
 The rivals use public state and their own private cards but never peek at the
 shoe or another hand:
@@ -118,7 +126,7 @@ too — you went over first.
 ## Controls
 
 `↵` deal · `X` check · `R` bet / raise · `C` call · `F` fold · `B` board ·
-`H` hand · `S` stand · `M` mute · `?` rules · `Esc` dismiss
+`H` hand · `S` stand · `L` hand log · `M` mute · `?` rules · `Esc` dismiss
 
 ## Running it
 
@@ -142,10 +150,7 @@ and passive players, per hand and as whole matches — with:
 npm run simulate:duel
 ```
 
-The older `npm run simulate:ai` harness still measures the classic showdown
-dealer that the rules module keeps for reference.
-
-Run the four-seat personality, pacing, Pressure, fold, and multi-bust harness
+Run the four-seat personality, pacing, betting, fold, and multi-bust harness
 with:
 
 ```bash
@@ -165,12 +170,12 @@ npm run simulate:table
 | `rules.js` | Pure rules: ladder rivals, duel betting and dealer strength, four-seat AI |
 | `game.js` | Duel state machine: dealing, betting rounds, settlement, the ladder |
 | `western.css` | Western Noir art direction layered over `styles.css` |
+| `fonts.css`, `asset/fonts/` | Self-hosted Playfair Display, IM Fell English SC and Inter (SIL OFL) |
 | `table-game.js` | Four-seat turn engine, AI betting, Lock, pot, and showdown |
 | `scripts/simulate-duel.cjs` | Seeded duel harness: dealer betting AI vs player policies |
-| `scripts/simulate-ai.cjs` | Seeded batch harness for the classic showdown dealer |
 | `scripts/simulate-table.cjs` | Seeded four-seat pacing and strategy harness |
 
-Nothing is fetched at runtime. Card faces are generated as vectors rather than
+Nothing is fetched at runtime — even the fonts ship with the game. Card faces are generated as vectors rather than
 loaded as images, so they stay sharp at any size and the game plays offline.
 The shuffle is Fisher–Yates seeded from `crypto.getRandomValues`. Bankroll,
 streak and session stats persist in `localStorage`.
